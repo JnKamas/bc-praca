@@ -19,13 +19,15 @@ def division_sk(votes, names, seats):
     
     seats_given = [int(x / republic_number) for x in counted_votes.values()]
     division_remainders = [x / republic_number - int(x / republic_number) for x in counted_votes.values()]
-    if seats_given > 150:
+    if sum(seats_given) > 150:
         # this requires more testing
         seats_given[division_remainders.index(min(division_remainders))] -= 1
     else:    
         for x in get_top_x_indexes(division_remainders, seats - sum(seats_given)):
             seats_given[x] += 1
-    return {names[x]: y for x, y in zip(counted_votes.keys(), seats_given)}    
+    return {x: y for x, y in zip(counted_votes.keys(), seats_given)}    
+    # return {names[x]: y for x, y in zip(counted_votes.keys(), seats_given)}    
+
 
 
 if __name__ == "__main__":
