@@ -1,4 +1,5 @@
 import random
+import np_rng
 
 def get_top_x_indexes(numbers, x):
     if x >= len(numbers):
@@ -31,11 +32,21 @@ def division_sk(votes, names, seats):
 
 
 if __name__ == "__main__":
-    import reader
 
-    votes, names = reader.reader()
+    ## remove valid votes
+    import reader
+    num_choices = 4388872
+    valid_votes = 3007123
+    votes_counts, party_names = reader.reader()
+    probabilities = {x: y for x, y, z in votes_counts}
+    probabilities["No valid vote"] = num_choices - sum(probabilities.values())
+    votes = [[x, y, (y / valid_votes) * 100] for x, y in np_rng.random_choices(probabilities, num_choices).items()]
+
+    for x in votes:
+        print(x)
+
     seats = 150
-    res = division_sk(votes, names, seats)
+    res = division_sk(votes, party_names, seats)
     print(sum(res.values()))
     for x, y in res.items():
         print(f'{x} \t {y}')

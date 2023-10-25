@@ -1,6 +1,8 @@
 import numpy as np
 import time
 
+import reader
+
 ## numpy solution that takes roughly 1.7 seconds to perform a simulation
 ## 10 000 simulations takes roughly 5 hours
 
@@ -22,9 +24,12 @@ def random_choices(probabilities, num_choices):
     return sorted_results
 
 if __name__ == "__main__":
-    probabilities = {'A': 0.4, 'B': 0.3, 'C': 0.2, 'D': 0.1}
-    num_choices = 5000000
+    num_choices = 4388872
+    votes_counts, party_names = reader.reader()
+    probabilities = {x: y for x, y, z in votes_counts}
+    probabilities["No valid vote"] = num_choices - sum(probabilities.values())
     start_time = time.time()
     sorted_results = random_choices(probabilities, num_choices)
     print(time.time() - start_time)
-    print(sorted_results)
+    for x, y in sorted_results.items():
+        print(f'{x} \t {y}')

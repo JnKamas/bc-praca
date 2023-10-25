@@ -1,6 +1,8 @@
 import random
 import time
 
+import reader
+
 # simplest solution that takes roughly 10 second to perform a simulation
 # 10 000 simulations is roughly 3 days
 
@@ -25,8 +27,9 @@ def random_choices(probabilities, num_choices):
 
 
 if __name__ == "__main__":
-    probabilities = {'A': 0.4, 'B': 0.3, 'C': 0.2, 'D': 0.1}
-    num_choices = 5000000
+    num_choices = 4388872
+    probabilities = reader.reader(1)
+    probabilities["No valid vote"] = num_choices - sum(probabilities.values())
     start_time = time.time()
     sorted_results = random_choices(probabilities, num_choices)
     print(time.time() - start_time)
