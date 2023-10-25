@@ -23,6 +23,7 @@ def random_choices(probabilities, num_choices):
     sorted_results = {k: results[k] for k in sorted(results.keys())}
     return sorted_results
 
+
 if __name__ == "__main__":
     probabilities = {'A': 0.4, 'B': 0.3, 'C': 0.2, 'D': 0.1}
     num_choices = 5000000
