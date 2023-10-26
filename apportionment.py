@@ -1,19 +1,43 @@
+import random
+import time
+import csv
+
 class Apportionment:
 
-    def __init__(self, num_seats, votes_dict, total_voters):
-        self.num_seats = num_seats
-        self.votes_dict = votes_dict
-        self.total_voters = total_voters
+    def __init__(self, num_seats, total_voters):
+        self._num_seats = num_seats
+        self._total_voters = total_voters
+        self._subject_votes = {}
+        self._subject_names = {}
 
 
     def get_num_seats(self):
         return self._num_seats
 
-    def get_votes_dict(self):
-        return self._votes_dict
+    def get_subject_votes(self):
+        return self._subject_votes
 
     def get_total_voters(self):
         return self._total_voters
+    
+    def get_subject_names(self):
+        return self._subject_names
+
+    def read_votes_from_csv(self, link):
+
+        with open(link, 'r', encoding='utf-8') as csvfile:
+            data = csv.reader(csvfile)
+            
+            # Skip header
+            next(data)
+
+            for row in data:
+                if len(row) >= 3:
+                    subject_number = row[0].strip()
+                    subject_name = row[1].strip()
+                    valid_votes = int(row[2].strip())
+                    self._subject_votes[subject_number] =  valid_votes
+                    self._subject_names[subject_number] = subject_name
     
 
     def _slovak_apportionment(self):
@@ -63,13 +87,12 @@ class Apportionment:
 
 
 if __name__ == "__main__":
-    num_seats = 10
-    votes = {
-        'Party A': 5000,
-        'Party B': 6000,
-        'Party C': 3000,
-        'Party D': 4000,
-    }
-    total_voters = 18000
 
-    apportionment_instance = Apportionment(num_seats, votes, total_voters)
+    total_voters = 4388872
+    num_seats = 150
+    votes = {}
+
+    ap = Apportionment(num_seats, total_voters)
+    ap.read_votes_from_csv('NRSR2023_SK_tab03a.csv')
+    print(ap.get_subject_votes())
+    print(ap.get_subject_names())
