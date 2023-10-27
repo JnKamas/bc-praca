@@ -7,6 +7,7 @@ class Apportionment:
     def __init__(self, num_seats, total_voters):
         self._num_seats = num_seats
         self._total_voters = total_voters
+        self._active_voters = -1
         self._subject_votes = {}
         self._subject_names = {}
 
@@ -19,11 +20,15 @@ class Apportionment:
 
     def get_total_voters(self):
         return self._total_voters
+
+    def get_active_voters(self):
+        return self._active_voters
     
     def get_subject_names(self):
         return self._subject_names
 
     def read_votes_from_csv(self, link):
+        self._active_voters = 0
 
         with open(link, 'r', encoding='utf-8') as csvfile:
             data = csv.reader(csvfile)
@@ -36,13 +41,38 @@ class Apportionment:
                     subject_number = row[0].strip()
                     subject_name = row[1].strip()
                     valid_votes = int(row[2].strip())
-                    self._subject_votes[subject_number] =  valid_votes
+                    self._subject_votes[subject_number] = valid_votes
                     self._subject_names[subject_number] = subject_name
+                    self._active_voters += valid_votes
     
 
-    def _slovak_apportionment(self):
-        # Implement Slovak method logic here
-        pass
+    def _slovak_apportionment(self): ## returns dictionary subject_number : seats
+
+        def get_top_x_indexes(numbers, x):
+            if x >= len(numbers):
+                return list(range(len(numbers)))
+            
+            indexes_with_values = list(enumerate(numbers))
+            indexes_with_values.sort(key=lambda x: (-x[1], random.random()))
+            
+            top_x_indexes = [index for index, _ in indexes_with_values[:x]]
+            
+            return top_x_indexes
+
+        counted_votes = {x : y for x, y in self._subject_votes.items() if ((y * 100) / self._active_voters) > 5} # -> TODO higher tresholds for coalitions
+
+        sum_counted_votes = sum(counted_votes.values())
+        republic_number = round(sum_counted_votes / (num_seats + 1))
+        
+        seats_given = [int(x / republic_number) for x in counted_votes.values()]
+        division_remainders = [x / republic_number - int(x / republic_number) for x in counted_votes.values()]
+        if sum(seats_given) > 150:
+            # this requires more testing
+            seats_given[division_remainders.index(min(division_remainders))] -= 1
+        else:    
+            for x in get_top_x_indexes(division_remainders, num_seats - sum(seats_given)):
+                seats_given[x] += 1
+        return {x: y for x, y in zip(counted_votes.keys(), seats_given)}    
 
     def _dhont_apportionment(self):
         # Implement D'Hondt method logic here
@@ -50,9 +80,9 @@ class Apportionment:
 
     def divide_seats(self, method):
         if method == "slovak":
-            self._slovak_apportionment()
+            return self._slovak_apportionment()
         elif method == "d'hont":
-            self._dhont_apportionment()
+            return self._dhont_apportionment()
         else:
             print("Invalid method choice. Please choose 'slovak' or 'd'hont'.")
 
@@ -96,3 +126,4 @@ if __name__ == "__main__":
     ap.read_votes_from_csv('NRSR2023_SK_tab03a.csv')
     print(ap.get_subject_votes())
     print(ap.get_subject_names())
+    print(ap.divide_seats("slovak"))
