@@ -45,6 +45,9 @@ class Apportionment:
                     self._subject_names[subject_number] = subject_name
                     self._active_voters += valid_votes
     
+    def _counted_votes(self):
+        return{x : y for x, y in self._subject_votes.items() if ((y * 100) / self._active_voters) > 5} # -> TODO higher tresholds for coalitions
+
 
     def _slovak_apportionment(self): ## returns dictionary subject_number : seats
 
@@ -59,7 +62,7 @@ class Apportionment:
             
             return top_x_indexes
 
-        counted_votes = {x : y for x, y in self._subject_votes.items() if ((y * 100) / self._active_voters) > 5} # -> TODO higher tresholds for coalitions
+        counted_votes = self._counted_votes()
 
         sum_counted_votes = sum(counted_votes.values())
         republic_number = round(sum_counted_votes / (num_seats + 1))
@@ -75,8 +78,23 @@ class Apportionment:
         return {x: y for x, y in zip(counted_votes.keys(), seats_given)}    
 
     def _dhont_apportionment(self):
-        # Implement D'Hondt method logic here
-        pass
+        results = {}
+        
+        counted_votes = self._counted_votes()
+
+        sorted_subject_votes = sorted(counted_votes.items(), key=lambda x: x[1], reverse=True)
+        
+        allocated_seats = {subject_number: 0 for subject_number in self._subject_votes}
+        
+        for _ in range(self._num_seats):
+            subject_number, votes = max(sorted_subject_votes, key=lambda x: x[1] / (allocated_seats[x[0]] + 1))
+            
+            allocated_seats[subject_number] += 1
+            
+            results[subject_number] = allocated_seats[subject_number]
+        
+        return results
+
 
     def divide_seats(self, method):
         if method == "slovak":
@@ -124,6 +142,10 @@ if __name__ == "__main__":
 
     ap = Apportionment(num_seats, total_voters)
     ap.read_votes_from_csv('NRSR2023_SK_tab03a.csv')
-    print(ap.get_subject_votes())
-    print(ap.get_subject_names())
-    print(ap.divide_seats("slovak"))
+    # print(ap.get_subject_votes())
+    # print(ap.get_subject_names())
+    # print(ap.divide_seats("slovak"))
+    rex = ap.divide_seats("d'hont")
+    print(sum(rex.values()))
+    ll = {ap.get_subject_names()[x]: y  for x, y in rex.items()}
+    for xx, yy in ll.items(): print(f'{yy} \t {xx}')
