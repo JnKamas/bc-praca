@@ -104,7 +104,7 @@ class Apportionment:
             print("Invalid method choice. Please choose 'slovak', 'd'hont' or 'hagenbach bischoff'.")
 
 
-    def basic_simulation(self, it):
+    def basic_simulation(self):
         probabilities = {x: y for x, y in self.subject_votes.items()}
         probabilities["No valid vote"] = self.total_voters - self.active_voters
 
@@ -123,7 +123,7 @@ class Apportionment:
         return sorted_results
 
 
-    def numpy_simulation(self, it):
+    def numpy_simulation(self):
         probabilities = {x: y for x, y in self.subject_votes.items()}
         probabilities["No valid vote"] = self.total_voters - self.active_voters
 
@@ -140,26 +140,50 @@ class Apportionment:
         sorted_results = {k: results[k] for k in sorted(results.keys())}
         return sorted_results
 
-    def boxes_simulation(self, it):
+    def boxes_simulation(self):
         # Implement boxes method logic here
         pass
 
-    def advanced_simulation(self, it):
+    def advanced_simulation(self):
         # Implement advanced method logic here
         pass
 
-    def simulate_results(self, method, it=10):
+    def simulate_results(self, method):
         if method == "basic":
-            return self.basic_simulation(it)
+            return self.basic_simulation()
         elif method == "numpy":
-            return self.numpy_simulation(it)
+            return self.numpy_simulation()
         elif method == "boxes":
-            return self.boxes_simulation(it)
+            return self.boxes_simulation()
         elif method == "advanced":
-            return self.advanced_simulation(it)
+            return self.advanced_simulation()
         else:
             print("Invalid option. Please choose 'basic,' 'numpy,' 'boxes,' or 'advanced'.")
 
+    def iterated_simulate(self, method, file, num_simulations=10):
+        print("Initializing simulation...")
+        start_time = time.time()
+
+        with open(file, 'w', newline='', encoding='utf-8') as csvfile:
+            fieldnames = ['Time', 'No valid vote']
+            fieldnames.extend(self.subject_names.values())
+            
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for i in range(num_simulations):
+                results = self.simulate_results(method)
+                simulation_time = time.time() - start_time
+
+                row_data = {'Time': simulation_time}
+                for xx, yy in results.items():
+                    try:
+                        row_data[self.subject_names[xx]] = yy
+                    except KeyError:
+                        row_data['No valid vote'] = yy
+                writer.writerow(row_data)
+                print(f'{i+1} / {num_simulations}')
+        print(f'''Simulation finished. Results in file {file}\nTime: {simulation_time} seconds.''')
 
 if __name__ == "__main__":
 
@@ -180,7 +204,4 @@ if __name__ == "__main__":
     for xx, yy in ll.items(): print(f'{yy} \t {xx}')
     ### TO THERE 
     ### I want to encapsulate as __str__ or something like that
-    simulation = ap.simulate_results("numpy")
-    print(f'ap {ap.total_voters}')
-    print(f'sim {sum(simulation.values())}')
-    for xx, yy in simulation.items(): print(f'{yy} \t {xx}')
+    ap.iterated_simulate('numpy', 'test.csv')
