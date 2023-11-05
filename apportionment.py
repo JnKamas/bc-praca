@@ -61,7 +61,25 @@ class Apportionment:
         else:    
             for x in get_top_x_indexes(division_remainders, num_seats - sum(seats_given)):
                 seats_given[x] += 1
-        return {x: y for x, y in zip(counted_votes.keys(), seats_given)}    
+        return {x: y for x, y in zip(counted_votes.keys(), seats_given)} 
+
+
+    def hagenbach_bischoff_apportionment(self):
+        results = {}
+        counted_votes = self.counted_votes()  # Assuming this is a method to count votes
+        sorted_subject_votes = sorted(counted_votes.items(), key=lambda x: x[1], reverse=True)
+        allocated_seats = {subject_number: 0 for subject_number in self.subject_votes}
+        
+        for _ in range(self.num_seats):  # Assuming self.num_seats represents the total seats available
+            subject_number, votes = max(
+                sorted_subject_votes,
+                key=lambda x: x[1] / (allocated_seats[x[0]] + 1)
+            )
+            allocated_seats[subject_number] += 1
+            results[subject_number] = allocated_seats[subject_number]
+        
+        return results
+
 
     def dhont_apportionment(self):
         results = {}
@@ -80,8 +98,10 @@ class Apportionment:
             return self.slovak_apportionment()
         elif method == "d'hont":
             return self.dhont_apportionment()
+        elif method == "hagenbach bischoff":
+            return self.hagenbach_bischoff_apportionment()
         else:
-            print("Invalid method choice. Please choose 'slovak' or 'd'hont'.")
+            print("Invalid method choice. Please choose 'slovak', 'd'hont' or 'hagenbach bischoff'.")
 
 
     def basic_simulation(self, it):
@@ -154,13 +174,13 @@ if __name__ == "__main__":
     # print(ap.subject_names)
     # print(ap.divide_seats("slovak"))
     ### FROM THERE
-    rex = ap.divide_seats("d'hont")
+    rex = ap.divide_seats("hagenbach bischoff")
     print(sum(rex.values()))
     ll = {ap.subject_names[x]: y  for x, y in rex.items()}
     for xx, yy in ll.items(): print(f'{yy} \t {xx}')
     ### TO THERE 
     ### I want to encapsulate as __str__ or something like that
-    simulation = ap.simulate_results("basic")
+    simulation = ap.simulate_results("numpy")
     print(f'ap {ap.total_voters}')
     print(f'sim {sum(simulation.values())}')
     for xx, yy in simulation.items(): print(f'{yy} \t {xx}')
