@@ -178,7 +178,7 @@ class Apportionment:
                 
                 seatsfieldnames = self.subject_names.values()
 
-                seatswriter = csv.DictWriter(csvfile, fieldnames=seatsfieldnames)
+                seatswriter = csv.DictWriter(seatsfile, fieldnames=seatsfieldnames)
                 seatswriter.writeheader()
 
                 for i in range(num_simulations):
