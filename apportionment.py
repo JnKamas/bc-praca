@@ -32,6 +32,8 @@ class Apportionment:
                     self.active_voters += valid_votes
     
     def counted_votes(self):
+        if self.active_voters == None:
+            self.active_voters = sum(self.subject_votes.values())
         return{x : y for x, y in self.subject_votes.items() if ((y * 100) / self.active_voters) > self.treshold()}
 
 
@@ -165,24 +167,41 @@ class Apportionment:
         start_time = time.time()
 
         with open(file, 'w', newline='', encoding='utf-8') as csvfile:
+            
             fieldnames = ['Time', 'No valid vote']
             fieldnames.extend(self.subject_names.values())
             
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
-            for i in range(num_simulations):
-                results = self.simulate_results(method)
-                simulation_time = time.time() - start_time
+            with open("ap" + file, 'w', newline='', encoding='utf-8') as seatsfile:
+                
+                seatsfieldnames = self.subject_names.values()
 
-                row_data = {'Time': simulation_time}
-                for xx, yy in results.items():
-                    try:
-                        row_data[self.subject_names[xx]] = yy
-                    except KeyError:
-                        row_data['No valid vote'] = yy
-                writer.writerow(row_data)
-                print(f'{i+1} / {num_simulations}')
+                seatswriter = csv.DictWriter(csvfile, fieldnames=seatsfieldnames)
+                seatswriter.writeheader()
+
+                for i in range(num_simulations):
+                    results = self.simulate_results(method)
+                    simulation_time = time.time() - start_time
+
+                    row_data = {'Time': simulation_time}
+                    for xx, yy in results.items():
+                        try:
+                            row_data[self.subject_names[xx]] = yy
+                        except KeyError:
+                            row_data['No valid vote'] = yy
+                    writer.writerow(row_data)
+                    print(f'{i+1} / {num_simulations}')
+
+                    ap = Apportionment(self.num_seats, self.total_voters)
+                    del results['No valid vote']
+                    ap.subject_votes = {self.subject_names[x] : y for x, y in results.items()}
+                    export = ap.divide_seats('slovak')
+                    seatswriter.writerow(export)
+
+        
+
         print(f'''Simulation finished. Results in file {file}\nTime: {simulation_time} seconds.''')
 
 if __name__ == "__main__":
