@@ -12,6 +12,7 @@ class Apportionment:
         self.subject_votes = {}
         self.subject_names = {}
         self.treshold = treshold
+        self.boxes = None
 
     def read_votes_from_csv(self, link):
         self.active_voters = 0
@@ -143,8 +144,31 @@ class Apportionment:
         return sorted_results
 
     def boxes_simulation(self):
-        # Implement boxes method logic here
-        pass
+        probabilities = {x: y for x, y in self.subject_votes.items()}
+        probabilities["No valid vote"] = self.total_voters - self.active_voters
+
+        # Check if the probabilities sum to 1. If not, normalize them.
+        total_prob = sum(probabilities.values())
+        if total_prob != 1:
+            probabilities = {key: prob / total_prob for key, prob in probabilities.items()}
+
+        keys, probs = zip(*probabilities.items())
+
+        if self.boxes == None:
+            self.boxes = [np.random.choice(keys, 100000, p=probs) for _ in range(10)]
+
+        choices = np.random.choice(keys, self.total_voters % 100000, p=probs)
+        print(type(choices[0]))
+        for _ in range(int(self.total_voters / 100000)):
+            rand_num = np.random.randint(10)
+            addition = self.boxes[rand_num]
+            print(choices, addition)
+            choices = np.concatenate((choices, addition))
+        print(choices, len(choices))
+
+        results = {key: np.count_nonzero(choices == key) for key in set(choices)}
+        sorted_results = {k: results[k] for k in sorted(results.keys())}
+        return sorted_results
 
     def advanced_simulation(self):
         # Implement advanced method logic here
@@ -181,6 +205,7 @@ class Apportionment:
                 seatswriter = csv.DictWriter(seatsfile, fieldnames=seatsfieldnames)
                 seatswriter.writeheader()
 
+
                 for i in range(num_simulations):
                     results = self.simulate_results(method)
                     simulation_time = time.time() - start_time
@@ -199,8 +224,6 @@ class Apportionment:
                     ap.subject_votes = {self.subject_names[x] : y for x, y in results.items()}
                     export = ap.divide_seats('slovak')
                     seatswriter.writerow(export)
-
-        
 
         print(f'''Simulation finished. Results in file {file}\nTime: {simulation_time} seconds.''')
 
@@ -223,4 +246,4 @@ if __name__ == "__main__":
     for xx, yy in ll.items(): print(f'{yy} \t {xx}')
     ### TO THERE 
     ### I want to encapsulate as __str__ or something like that
-    ap.iterated_simulate('numpy', 'test.csv')
+    ap.iterated_simulate('boxes', 'test.csv')
