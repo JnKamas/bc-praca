@@ -155,16 +155,13 @@ class Apportionment:
         keys, probs = zip(*probabilities.items())
 
         if self.boxes == None:
-            self.boxes = [np.random.choice(keys, 100000, p=probs) for _ in range(10)]
+            self.boxes = [np.random.choice(keys, 100000, p=probs) for _ in range(1000)]
 
         choices = np.random.choice(keys, self.total_voters % 100000, p=probs)
-        print(type(choices[0]))
         for _ in range(int(self.total_voters / 100000)):
-            rand_num = np.random.randint(10)
+            rand_num = np.random.randint(1000)
             addition = self.boxes[rand_num]
-            print(choices, addition)
             choices = np.concatenate((choices, addition))
-        print(choices, len(choices))
 
         results = {key: np.count_nonzero(choices == key) for key in set(choices)}
         sorted_results = {k: results[k] for k in sorted(results.keys())}
@@ -246,4 +243,4 @@ if __name__ == "__main__":
     for xx, yy in ll.items(): print(f'{yy} \t {xx}')
     ### TO THERE 
     ### I want to encapsulate as __str__ or something like that
-    ap.iterated_simulate('boxes', 'test.csv')
+    ap.iterated_simulate('boxes', 'test.csv', num_simulations=1000)
