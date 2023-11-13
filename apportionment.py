@@ -14,7 +14,7 @@ class Apportionment:
         self.treshold = treshold
         self.boxes = None
 
-    def read_votes_from_csv(self, link):
+    def read_votes_from_csv(self, link): # from an original source
         self.active_voters = 0
 
         with open(link, 'r', encoding='utf-8') as csvfile:
