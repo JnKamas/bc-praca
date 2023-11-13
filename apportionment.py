@@ -1,3 +1,5 @@
+# This file contains by encapsulated backend to make programming all the simulations easier
+
 import random
 import time
 import csv
