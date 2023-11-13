@@ -243,4 +243,4 @@ if __name__ == "__main__":
     for xx, yy in ll.items(): print(f'{yy} \t {xx}')
     ### TO THERE 
     ### I want to encapsulate as __str__ or something like that
-    ap.iterated_simulate('boxes', 'test.csv', num_simulations=1000)
+    ap.iterated_simulate('numpy', 'test2.csv', num_simulations=10)
