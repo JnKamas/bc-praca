@@ -4,6 +4,7 @@ import random
 import time
 import csv
 import numpy as np
+import pandas as pd
 
 class Apportionment:
 
@@ -56,7 +57,7 @@ class Apportionment:
         counted_votes = self.counted_votes()
 
         sum_counted_votes = sum(counted_votes.values())
-        republic_number = round(sum_counted_votes / (num_seats + 1))
+        republic_number = round(sum_counted_votes / (self.num_seats + 1))
         
         seats_given = [int(x / republic_number) for x in counted_votes.values()]
         division_remainders = [x / republic_number - int(x / republic_number) for x in counted_votes.values()]
@@ -64,7 +65,7 @@ class Apportionment:
             # this requires more testing
             seats_given[division_remainders.index(min(division_remainders))] -= 1
         else:    
-            for x in get_top_x_indexes(division_remainders, num_seats - sum(seats_given)):
+            for x in get_top_x_indexes(division_remainders, self.num_seats - sum(seats_given)):
                 seats_given[x] += 1
         return {x: y for x, y in zip(counted_votes.keys(), seats_given)} 
 
@@ -185,64 +186,73 @@ class Apportionment:
         else:
             print("Invalid option. Please choose 'basic,' 'numpy,' 'boxes,' or 'advanced'.")
 
-    def iterated_simulate(self, method, file, num_simulations=10):
+    def iterated_simulate(self, method, file, num_simulations=10, samples=10):
+
+        columns = ['interation_number', 'party_number', 'samples', 'diff']
+        result = pd.DataFrame(columns=columns)
+        
         print("Initializing simulation...")
         start_time = time.time()
 
+
         with open(file, 'w', newline='', encoding='utf-8') as csvfile:
             
-            fieldnames = ['Time', 'No valid vote']
-            fieldnames.extend(self.subject_names.values())
+            fieldnames = ['interation_number', 'party_number', 'samples', 'diff']
             
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
-            with open("ap" + file, 'w', newline='', encoding='utf-8') as seatsfile:
-                
-                seatsfieldnames = self.subject_names.values()
+            for i in range(num_simulations):
+                results = self.simulate_results(method)
+                simulation_time = time.time() - start_time
 
-                seatswriter = csv.DictWriter(seatsfile, fieldnames=seatsfieldnames)
-                seatswriter.writeheader()
+                row_data = {'Time': simulation_time}
+                for xx, yy in results.items():
+                    try:
+                        row_data[self.subject_names[xx]] = yy
+                    except KeyError:
+                        row_data['No valid vote'] = yy
+                print(f'{i+1} / {num_simulations}')
 
+                default_ap = Apportionment(self.num_seats, self.total_voters)
+                del results['No valid vote']
+                default_ap.subject_votes = results.copy()
+                export = default_ap.divide_seats('slovak')
+                main_seats_vector = self.dictionary_to_vector(export)
 
-                for i in range(num_simulations):
-                    results = self.simulate_results(method)
-                    simulation_time = time.time() - start_time
+            
+                # NESTED LOOP TO TEST CHANGES
+                for party in self.subject_names.keys():
+                    for sample in range(1, samples + 1):
+                        ap = Apportionment(self.num_seats, self.total_voters - sample)
+                        
+                        ap.subject_votes = results.copy()
+                        ap.subject_votes[str(party)] += sample
+                        export = ap.divide_seats('slovak')
+                        seats_vector = self.dictionary_to_vector(export)
+                        
+                        distance = compare_vectors(main_seats_vector, seats_vector)
+                        
+                        new_data = {'interation_number': i+1, 'party_number': party, 'samples' : sample, 'diff' : distance}
+                        writer.writerow(new_data)
 
-                    row_data = {'Time': simulation_time}
-                    for xx, yy in results.items():
-                        try:
-                            row_data[self.subject_names[xx]] = yy
-                        except KeyError:
-                            row_data['No valid vote'] = yy
-                    writer.writerow(row_data)
-                    print(f'{i+1} / {num_simulations}')
+                    
+        print(f'''Simulation finished. Detailed results in file {file}\nTime: {time.time() - start_time} seconds.''')
+        return result
 
-                    ap = Apportionment(self.num_seats, self.total_voters)
-                    del results['No valid vote']
-                    ap.subject_votes = {self.subject_names[x] : y for x, y in results.items()}
-                    export = ap.divide_seats('slovak')
-                    seatswriter.writerow(export)
+    def dictionary_to_vector(self, input_dict):
+        max_index = len(self.subject_votes.keys())
+        result_vector = [0] * max_index
 
-        print(f'''Simulation finished. Results in file {file}\nTime: {simulation_time} seconds.''')
+        for key, value in input_dict.items():
+            index = int(key)
+            if 1 <= index <= max_index:
+                result_vector[index - 1] = value
 
-if __name__ == "__main__":
-
-    total_voters = 4388872
-    num_seats = 150
-    votes = {}
-
-    ap = Apportionment(num_seats, total_voters) # -> TODO higher tresholds for coalitions
-    #necessary for proper testing of 2020 elections
-    ap.read_votes_from_csv('NRSR2023_SK_tab03a.csv')
-    # print(ap.subject_votes)
-    # print(ap.subject_names)
-    # print(ap.divide_seats("slovak"))
-    ### FROM THERE
-    rex = ap.divide_seats("hagenbach bischoff")
-    print(sum(rex.values()))
-    ll = {ap.subject_names[x]: y  for x, y in rex.items()}
-    for xx, yy in ll.items(): print(f'{yy} \t {xx}')
-    ### TO THERE 
-    ### I want to encapsulate as __str__ or something like that
-    ap.iterated_simulate('numpy', 'test2.csv', num_simulations=10)
+        return result_vector
+    
+def compare_vectors(first, second):
+    diff = 0
+    for i in range(len(first)):
+        diff += abs(first[i] - second[i])
+    return diff
