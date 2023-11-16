@@ -255,4 +255,4 @@ def compare_vectors(first, second):
     diff = 0
     for i in range(len(first)):
         diff += abs(first[i] - second[i])
-    return diff
+    return int(diff / 2)
