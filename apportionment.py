@@ -15,7 +15,26 @@ class Apportionment:
         self.subject_votes = {}
         self.subject_names = {}
         self.treshold = treshold
+        self.probabilities = None
+        self._generate_probabilities()
         self.boxes = None
+
+    def copy(self):
+        ap = Apportionment(self.num_seats, self.total_voters, self.treshold)
+        ap.active_voters = self.active_voters
+        ap.subject_names = self.subject_names
+        ap.subject_votes = self.subject_votes
+        ap.boxes = self.boxes
+        return ap
+
+    def _generate_probabilities(self):
+        self.probabilities = {x: y for x, y in self.subject_votes.items()}
+        self.probabilities["No valid vote"] = self.total_voters - self.active_voters
+
+        # Check if the probabilities sum to 1. If not, normalize them.
+        total_prob = sum(self.probabilities.values())
+        if total_prob != 1:
+            self.probabilities = {key: prob / total_prob for key, prob in self.probabilities.items()}
 
     def read_votes_from_csv(self, link): # from an original source
         self.active_voters = 0
@@ -109,36 +128,26 @@ class Apportionment:
         else:
             print("Invalid method choice. Please choose 'slovak', 'd'hont' or 'hagenbach bischoff'.")
 
+    def generate_additional_votes(self, count):
+        keys, probs = zip(*self.probabilities.items())
 
-    def basic_simulation(self):
-        probabilities = {x: y for x, y in self.subject_votes.items()}
-        probabilities["No valid vote"] = self.total_voters - self.active_voters
+        choices = np.random.choice(keys, count, p=probs)
 
-        # Check if the probabilities sum to 1. If not, normalize them.
-        total_prob = sum(probabilities.values())
-        if total_prob != 1:
-            probabilities = {key: prob / total_prob for key, prob in probabilities.items()}
+        results = {key: np.count_nonzero(choices == key) for key in set(choices)}
+        
 
+    def basic_simulation(self): ## obsolete
         choices = []
         for _ in range(self.total_voters):
-            choice = random.choices(list(probabilities.keys()), list(probabilities.values()))[0]
+            choice = random.choices(list(self.probabilities.keys()), list(self.probabilities.values()))[0]
             choices.append(choice)
 
         results = {key: choices.count(key) for key in set(choices)}
         sorted_results = {k: results[k] for k in sorted(results.keys())}
         return sorted_results
 
-
     def numpy_simulation(self):
-        probabilities = {x: y for x, y in self.subject_votes.items()}
-        probabilities["No valid vote"] = self.total_voters - self.active_voters
-
-        # Check if the probabilities sum to 1. If not, normalize them.
-        total_prob = sum(probabilities.values())
-        if total_prob != 1:
-            probabilities = {key: prob / total_prob for key, prob in probabilities.items()}
-
-        keys, probs = zip(*probabilities.items())
+        keys, probs = zip(*self.probabilities.items())
 
         choices = np.random.choice(keys, self.total_voters, p=probs)
 
@@ -147,15 +156,7 @@ class Apportionment:
         return sorted_results
 
     def boxes_simulation(self):
-        probabilities = {x: y for x, y in self.subject_votes.items()}
-        probabilities["No valid vote"] = self.total_voters - self.active_voters
-
-        # Check if the probabilities sum to 1. If not, normalize them.
-        total_prob = sum(probabilities.values())
-        if total_prob != 1:
-            probabilities = {key: prob / total_prob for key, prob in probabilities.items()}
-
-        keys, probs = zip(*probabilities.items())
+        keys, probs = zip(*self.probabilities.items())
 
         if self.boxes == None:
             self.boxes = [np.random.choice(keys, 100000, p=probs) for _ in range(1000)]
@@ -222,19 +223,25 @@ class Apportionment:
 
             
                 # NESTED LOOP TO TEST CHANGES
-                for party in self.subject_names.keys():
-                    for sample in range(1, samples + 1):
-                        ap = Apportionment(self.num_seats, self.total_voters - sample)
-                        
-                        ap.subject_votes = results.copy()
-                        ap.subject_votes[str(party)] += sample
-                        export = ap.divide_seats('slovak')
+                ap = Apportionment(self.num_seats, self.total_voters - samples)
+                ap.subject_votes = results.copy()
+
+                for sample in range(samples+1, 1, -1):
+                    for party in self.subject_names.keys():
+                        apx = ap.copy()
+                        apx.subject_votes[str(party)] += sample
+                        export = apx.divide_seats('slovak')
                         seats_vector = self.dictionary_to_vector(export)
                         
                         distance = compare_vectors(main_seats_vector, seats_vector)
                         
                         new_data = {'interation_number': i+1, 'party_number': party, 'samples' : sample, 'diff' : distance}
                         writer.writerow(new_data)
+                    # generation of a next vote
+                    for index, x in enumerate(self.generate_additional_votes(1)):
+                        apx.subject_votes[index] += x
+
+                    
 
                     
         print(f'''Simulation finished. Detailed results in file {file}\nTime: {time.time() - start_time} seconds.''')
