@@ -221,8 +221,7 @@ class Apportionment:
 
                 default_ap = Apportionment(self.num_seats, self.total_voters, self.active_voters)
                 default_ap.subject_votes = results.copy()
-                export = default_ap.divide_seats('slovak')
-                main_seats_vector = self.dictionary_to_vector(export)
+                main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats('slovak'))
 
             
                 # NESTED LOOP TO TEST CHANGES
@@ -230,11 +229,10 @@ class Apportionment:
                 ap.subject_votes = results.copy()
                 
                 for sample in range(samples, 0, -1):
-                    for party in self.subject_names.keys():
+                    for party in self.subject_names.keys(): ## extension of 0 required
                         apx = ap.copy()
                         apx.subject_votes[party] += sample
-                        export = apx.divide_seats('slovak')
-                        seats_vector = self.dictionary_to_vector(export)
+                        seats_vector = self.dictionary_to_vector(apx.divide_seats('slovak'))
                         apx.subject_votes[party] -= sample
 
                         distance = compare_vectors(main_seats_vector, seats_vector)
