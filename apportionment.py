@@ -9,41 +9,44 @@ import pandas as pd
 
 class Apportionment:
 
-    def __init__(self, num_seats, total_voters, active_voters=None, link=None, treshold=lambda: 5, genprob=True):
+    def __init__(self, num_seats, voters, link=None):
         self.num_seats = num_seats
-        self.total_voters = total_voters
-        self.active_voters = active_voters
+        self.voters = voters
         self.subject_votes = {}
         self.subject_names = {}
-        self.treshold = treshold
-        if link is not None:
-            self.read_votes_from_csv(link)
+        self.treshold = lambda: 5
+        if link: self.read_votes_from_csv(link) # else insert data manually
         self.probabilities = None 
-        if genprob: # if this is false, you have to insert probabilities manually!
-            self._generate_probabilities()
+        if link: self.generate_probabilities() # else generate probs manually
         self.boxes = None
+    
+    def __str__(self):
+        return (
+            f"""Apportionment(\n
+                num_seats={self.num_seats},\n
+                subject_votes={self.subject_votes},\n
+                voters={self.voters}\n
+            )"""
+        )
+
 
     def copy(self):
-        ap = Apportionment(self.num_seats, self.total_voters, self.treshold, genprob=False)
-        ap.active_voters = self.active_voters
-        ap.subject_names = self.subject_names
-        ap.subject_votes = self.subject_votes
-        ap.boxes = self.boxes
-        ap.probabilities = self.probabilities
-        return ap
+        cpy = Apportionment(num_seats=self.num_seats, voters=self.voters)
+        cpy.subject_votes = self.subject_votes.copy()
+        cpy.subject_names = self.subject_names
+        cpy.treshold = self.treshold
+        cpy.probabilities = self.probabilities
+        cpy.boxes = self.boxes
+        return cpy
 
-    def _generate_probabilities(self):
-        self.probabilities = {int(x): y for x, y in self.subject_votes.items()}
-        self.probabilities[0] = self.total_voters - self.active_voters
-
-        # Check if the probabilities sum to 1. If not, normalize them.
-        total_prob = sum(self.probabilities.values())
+    def generate_probabilities(self):
+        # requires numeric improvement (probably logarithms instead)
+        total_prob = sum(self.subject_votes.values())
         if total_prob != 1:
-            self.probabilities = {key: prob / total_prob for key, prob in self.probabilities.items()}
+            self.probabilities = {key: prob / total_prob for key, prob in self.subject_votes.items()}
 
-    def read_votes_from_csv(self, link): # from an original source
-        self.active_voters = 0
-
+    def read_votes_from_csv(self, link):
+        print("link", link)
         with open(link, 'r', encoding='utf-8') as csvfile:
             data = csv.reader(csvfile)
             
@@ -57,15 +60,12 @@ class Apportionment:
                     valid_votes = int(row[2].strip())
                     self.subject_votes[subject_number] = valid_votes
                     self.subject_names[subject_number] = subject_name
-                    self.active_voters += valid_votes
     
     def counted_votes(self):
-        if self.active_voters == None:
-            self.active_voters = sum(self.subject_votes.values())
-        return{x : y for x, y in self.subject_votes.items() if ((y * 100) / self.active_voters) > self.treshold()}
+        return{x : y for x, y in self.subject_votes.items() if (((y * 100) / (sum(self.subject_votes.values()) - self.subject_votes[0])) > self.treshold() and x != 0)}
 
 
-    def slovak_apportionment(self): ## returns dictionary subject_number : seats
+    def slovak_apportionment(self):
 
         def get_top_x_indexes(numbers, x):
             if x >= len(numbers):
@@ -141,7 +141,7 @@ class Apportionment:
 
     def basic_simulation(self): ## obsolete
         choices = []
-        for _ in range(self.total_voters):
+        for _ in range(self.voters):
             choice = random.choices(list(self.probabilities.keys()), list(self.probabilities.values()))[0]
             choices.append(choice)
 
@@ -152,7 +152,7 @@ class Apportionment:
     def numpy_simulation(self):
         keys, probs = zip(*self.probabilities.items())
 
-        choices = np.random.choice(keys, self.total_voters, p=probs)
+        choices = np.random.choice(keys, self.voters, p=probs)
 
         results = {key: np.count_nonzero(choices == key) for key in set(choices)}
         sorted_results = {k: results[k] for k in sorted(results.keys())}
@@ -164,8 +164,8 @@ class Apportionment:
         if self.boxes == None:
             self.boxes = [np.random.choice(keys, 100000, p=probs) for _ in range(1000)]
 
-        choices = np.random.choice(keys, self.total_voters % 100000, p=probs)
-        for _ in range(int(self.total_voters / 100000)):
+        choices = np.random.choice(keys, self.voters % 100000, p=probs)
+        for _ in range(int(self.voters / 100000)):
             rand_num = np.random.randint(1000)
             addition = self.boxes[rand_num]
             choices = np.concatenate((choices, addition))
@@ -177,6 +177,8 @@ class Apportionment:
     def advanced_simulation(self):
         # Implement advanced method logic here
         pass
+
+
 
     def simulate_results(self, method):
         if method == "basic":
@@ -190,64 +192,88 @@ class Apportionment:
         else:
             print("Invalid option. Please choose 'basic,' 'numpy,' 'boxes,' or 'advanced'.")
 
-    def iterated_simulate(self, method, file, num_simulations=10, samples=10):
 
-        columns = ['interation_number', 'party_number', 'samples', 'diff']
-        result = pd.DataFrame(columns=columns)
-        
+
+    def iterated_simulate(self, method, file, nit=10, group_size=10):
+
         print("Initializing simulation...")
         start_time = time.time()
 
+        columns = ['interation_number', 'party_number', 'samples', 'diff']
 
         with open(file, 'w', newline='', encoding='utf-8') as csvfile:
+
+            return_df1 = pd.DataFrame(columns=columns)
+            return_df2 = pd.DataFrame(columns=columns)
             
-            fieldnames = ['interation_number', 'party_number', 'samples', 'diff']
-            
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer = csv.DictWriter(csvfile, fieldnames=columns)
             writer.writeheader()
-
-            for i in range(num_simulations):
-                results = self.simulate_results(method)
-
-                simulation_time = time.time() - start_time
-
-                row_data = {'Time': simulation_time}
-                for xx, yy in results.items():
-                    try:
-                        row_data[self.subject_names[xx]] = yy
-                    except KeyError:
-                        row_data[0] = yy
-                print(f'{i+1} / {num_simulations}')
-
-                default_ap = Apportionment(self.num_seats, self.total_voters, self.active_voters)
-                default_ap.subject_votes = results.copy()
-                main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats('slovak'))
-
             
-                # NESTED LOOP TO TEST CHANGES
-                ap = Apportionment(self.num_seats, self.total_voters - samples, self.active_voters)
-                ap.subject_votes = results.copy()
+            with open('old'+file, 'w', newline='', encoding='utf-8') as csvfilex:
+
+                writerx = csv.DictWriter(csvfilex, fieldnames=columns)
+                writerx.writeheader()
+
+
+                for i in range(nit):
+                    print(f'{i+1} / {nit}')
+
+                    results = self.simulate_results(method)
+
+                    default_ap = Apportionment(self.num_seats, self.voters)
+                    default_ap.subject_votes = results.copy()
+                    main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats('slovak'))
+
                 
-                for sample in range(samples, 0, -1):
-                    for party in self.subject_names.keys(): ## extension of 0 required
-                        apx = ap.copy()
-                        apx.subject_votes[party] += sample
-                        seats_vector = self.dictionary_to_vector(apx.divide_seats('slovak'))
-                        apx.subject_votes[party] -= sample
+                    # NESTED LOOP TO TEST CHANGES
+                    ap = Apportionment(self.num_seats, self.voters - group_size)
+                    ap.subject_votes = results.copy()
+                    ap.generate_probabilities()
+                    # print(ap)
 
-                        distance = compare_vectors(main_seats_vector, seats_vector)
-                        
-                        new_data = {'interation_number': i+1, 'party_number': party, 'samples' : sample, 'diff' : distance}
-                        writer.writerow(new_data)
+                    for size in range(group_size, 0, -1):
+                        for party in self.subject_names.keys():
+                            apx = ap.copy()
+                            # print(apx)
+                            try: apx.subject_votes[party] += size
+                            except KeyError: apx.subject_votes[party] = size
+                            seats_vector = self.dictionary_to_vector(apx.divide_seats('slovak'))
+                            apx.subject_votes[party] -= size
 
-                    for index, x in self.generate_additional_votes(1).items():
-                        ap.subject_votes[index] += x
+                            distance = compare_vectors(main_seats_vector, seats_vector)
+                            
+                            new_data = {'interation_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
+                            writer.writerow(new_data)
+                            # Append a record
+                            # return_df1.append(new_data)
+
+                        for index, x in self.generate_additional_votes(1).items():
+                            try: apx.subject_votes[index] += x
+                            except KeyError: apx.subject_votes[index] = x
+
+                    # NESTED LOOP TO TEST CHANGES
+                    for party in self.subject_names.keys():
+                        for size in range(1, group_size + 1):
+                            ap = Apportionment(self.num_seats, self.voters - size)
+                            
+                            ap.subject_votes = results.copy()
+                            try: apx.subject_votes[party] += size
+                            except KeyError: apx.subject_votes[party] = size
+                            export = ap.divide_seats('slovak')
+                            seats_vector = self.dictionary_to_vector(export)
+                            
+                            distance = compare_vectors(main_seats_vector, seats_vector)
+                            
+                            new_data = {'interation_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
+                            writerx.writerow(new_data)
+                            # Append a record
+                    #         return_df2.append(new_data)
 
                     
 
                     
         print(f'''Simulation finished. Detailed results in file {file}\nTime: {time.time() - start_time} seconds.''')
-        return result
+        return return_df1, return_df2
 
     def dictionary_to_vector(self, input_dict):
         max_index = len(self.subject_votes.keys())
@@ -265,4 +291,29 @@ def compare_vectors(first, second):
     diff = 0
     for i in range(len(first)):
         diff += abs(first[i] - second[i])
-    return int(diff / 2)
+    return diff
+
+# if __name__ == "__main__":
+#     # Simulation parameters
+#     voters = 100000
+#     num_seats = 150
+#     nit = 100
+#     group_size = 100
+#     link='NRSR2023_clean.csv'
+
+#     ap = Apportionment(num_seats, voters, link=link) 
+#     # -> TODO higher tresholds for coalitions
+#     print("No of votes from source:", sum(ap.subject_votes.values()))
+#     print("Considered votes:", ap.voters)
+#     print("No. of seats:", num_seats)
+
+#     #apportionment test
+#     result = ap.divide_seats("slovak")
+#     if not (sum(result.values()) == 150): print(result.values()) 
+#     else: print("seats ok")
+#     if not (list(result.values()) == [32, 16, 11, 10, 42, 27, 12]): print(result.values()) 
+#     else: print("apport ok")
+#     print("Apportionment should work correctly.")
+
+#     print(sum(ap.probabilities.values()))
+#     ap.iterated_simulate('numpy', 'test3.csv', nit=nit, group_size=group_size)
