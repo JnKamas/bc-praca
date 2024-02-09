@@ -203,9 +203,6 @@ class Apportionment:
 
         with open(file, 'w', newline='', encoding='utf-8') as csvfile:
 
-            return_df1 = pd.DataFrame(columns=columns)
-            return_df2 = pd.DataFrame(columns=columns)
-            
             writer = csv.DictWriter(csvfile, fieldnames=columns)
             writer.writeheader()
 
@@ -246,7 +243,6 @@ class Apportionment:
                         except KeyError: apx.subject_votes[index] = x
                     
         print(f'''Simulation finished. Detailed results in file {file}\nTime: {time.time() - start_time} seconds.''')
-        return return_df1, return_df2
 
     def dictionary_to_vector(self, input_dict):
         max_index = len(self.subject_votes.keys())
