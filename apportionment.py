@@ -6,6 +6,8 @@ import time
 import csv
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
 
 class Apportionment:
 
@@ -261,6 +263,30 @@ def compare_vectors(first, second):
     for i in range(len(first)):
         diff += abs(first[i] - second[i])
     return diff
+
+
+def get_votes():
+    voters = 1000
+    num_seats = 150
+    link='NRSR2023_clean.csv'
+    ap = Apportionment(num_seats, voters, link=link) 
+    return ap.subject_votes
+
+def raw2visualisable(input_file):
+    chunksize = 130000000
+
+    all_xdfs = []
+
+    for chunk in pd.read_csv("../raw_data/"+input_file, chunksize=chunksize):
+        chunk['weight'] = chunk['party_number'].map(get_votes())
+        xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
+        all_xdfs.append(xdf)
+
+    result_df = pd.concat(all_xdfs, axis=0, ignore_index=True)
+    export_df = result_df.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
+    export_df.to_csv("../vis_data/vis-" + input_file, index=False)
+
+    print(f"{input_file} done")
 
 if __name__ == "__main__":
     # Simulation parameters
