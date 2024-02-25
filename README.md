@@ -1,11 +1,23 @@
 # bc-praca
 
-# this is my repo containing my coding background for my bachelors thesis
+## Description
+This repository contains the code for my bachelor's thesis in Data Science. The `apportionment.py` file contains backend code that encapsulates all necessary methods and classes for apportionment methods, data generating algorithms with bootstrap, and methods that help transform data into visualizable content. This structure is designed to keep Jupyter notebooks concise and focused.
 
-expect functions for apportionment methods, generating insane amount of random numbers and performing simulated elections 
+The actual data, excluding real vote results, won't be available on GitHub due to its size, which amounts to tens of gigabytes. Nevertheless, you can generate it using my code, though the expected computation time spans over a few days.
 
-#sharing it public so that people dont have to spend long time coding and understanding how voting in slovakia works as well as helping myself get comfortabe with github
+## Installation and Dependencies
+This project requires Python 3.8 or newer installed.
+You can install the required libraries using the following commands:
+ `pip install [name_of_library]` or `conda install [name_of_library]` depending on your Python distribution.
 
+## Documentation
+While there is a reasonable amount of commentary inside my code, you can find more detailed explanations in my bachelor thesis, which will be available upon completion.
 
+## Contributing
+External helpers are not expected to contribute, but finding any errors or ways to improve will be kindly appreciated. You can contribute by:
+- Reporting bugs
+- Suggesting enhancements
+- Providing feedback on the existing implementation
 
-# more info later
+## License
+This project is licensed under the MIT License.
