@@ -277,14 +277,14 @@ def raw2visualisable(input_file):
 
     all_xdfs = []
 
-    for chunk in pd.read_csv("../raw_data/"+input_file, chunksize=chunksize):
+    for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize): #. or .. i am not sure
         chunk['weight'] = chunk['party_number'].map(get_votes())
         xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
         all_xdfs.append(xdf)
 
     result_df = pd.concat(all_xdfs, axis=0, ignore_index=True)
     export_df = result_df.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
-    export_df.to_csv("../vis_data/vis-" + input_file, index=False)
+    export_df.to_csv("./vis_data/vis-" + input_file, index=False)
 
     print(f"{input_file} done")
 
