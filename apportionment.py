@@ -273,7 +273,23 @@ def get_votes():
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
-def raw2visualisable(input_file):
+def raw2visualisable(input_file, weight=True):
+    if not weight:
+        chunksize = 130000000
+
+        all_xdfs = []
+
+        for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize): #. or .. i am not sure
+            xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
+            all_xdfs.append(xdf)
+
+        result_df = pd.concat(all_xdfs, axis=0, ignore_index=True)
+        export_df = result_df.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
+        export_df.to_csv("./vis_data/unweighted-vis-" + input_file, index=False)
+
+        print(f"{input_file} done")
+        return
+
     chunksize = 130000000
 
     all_xdfs = []
