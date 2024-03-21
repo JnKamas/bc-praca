@@ -178,6 +178,7 @@ class Apportionment:
 
     def advanced_simulation(self):
         # Implement advanced method logic here
+        print('Advanced simulation method implemented.')
         pass
 
 
@@ -284,7 +285,7 @@ def raw2visualisable(input_file):
 
     result_df = pd.concat(all_xdfs, axis=0, ignore_index=True)
     export_df = result_df.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
-    export_df.to_csv("./vis_data/vis-" + input_file, index=False)
+    export_df.to_csv("./vis_data/weighted-vis-" + input_file, index=False)
 
     print(f"{input_file} done")
 
