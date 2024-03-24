@@ -273,35 +273,33 @@ def get_votes():
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
-def raw2visualisable(input_file, weight=True):
-    if not weight:
-        chunksize = 130000000
-
-        all_xdfs = []
-
-        for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize): #. or .. i am not sure
-            xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
-            all_xdfs.append(xdf)
-
-        result_df = pd.concat(all_xdfs, axis=0, ignore_index=True)
-        export_df = result_df.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
-        export_df.to_csv("./vis_data/unweighted-vis-" + input_file, index=False)
-
-        print(f"{input_file} done")
-        return
-
+def raw2visualisable(input_file, weighted=True):
+    '''
+    This method provides a transformation of .csv file containing generated data to a properly averaged form.
+    The data is transformed from tens GB to few MB.
+    The created files are then used to create a visualisation and they are stored in github repo.
+    '''
     chunksize = 130000000
-
     all_xdfs = []
 
-    for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize): #. or .. i am not sure
-        chunk['weight'] = chunk['party_number'].map(get_votes())
-        xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
+    # iteration through all records
+    # it basically puts averages together, correctly, but not optimally TODO
+    for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize):
+        if weighted:
+            chunk['weight'] = chunk['party_number'].map(get_votes())
+            xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
+        else:
+            xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
         all_xdfs.append(xdf)
 
+    # second iteration of the algorith ensures pseudo O(logn) space efficiency
     result_df = pd.concat(all_xdfs, axis=0, ignore_index=True)
     export_df = result_df.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
-    export_df.to_csv("./vis_data/weighted-vis-" + input_file, index=False)
+
+    # export to a file
+    file_prefix = ""
+    if not weighted: file_prefix += "un"
+    export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}", index=False)
 
     print(f"{input_file} done")
 
