@@ -278,50 +278,26 @@ def raw2visualisable(input_file, size, weighted=True, only_electable=False, subj
     The data is transformed from tens GB to few MB.
     The created files are then used to create a visualisation and they are stored in github repo.
     '''
-    # # number of records is size (all voters) * 0.03 (group size) * 500 (iterations) * subjects (number of electable subjects), parametres will be added later
-    # group_size = int(size * 0.03)
-    # records = subjects * group_size * 500
-    # divisor = size * subjects
-    # sums = {}
 
-    # # in following cycle we make sum o all vote changes. Then we divide it with divisor to receive average. this works in O(n) time and O(1) space efficiency.
-
-    # # not necessary, will do in try except
-    # for i in range(group_size):
-    #     sums[i] = 0
-
-    # start = True
-    # for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=1):
-    #     if start:
-    #         start = False
-    #         continue
-    #     if weighted:
-    #         chunk['weight'] = chunk['party_number'].map(get_votes())
-    #         sums[i] += chunk['weight'] * chunk['diff']
-    #     else:
-    #         sums[i] += chunk['diff']
-
-    # sums = [x / divisor for x in sums]
-
-    # # Creating a DataFrame from sums
-    # export_df = pd.DataFrame({'sums': sums})
-
-    # # Exporting the DataFrame to a CSV file
-    # export_df.to_csv('sums.csv', index=False)
-
-
-    # # OLD SOLUTION
-    chunksize = 130000000
+    chunksize = 130000000 #TODO adapt to subjects and group size
     all_xdfs = []
     
+    # adaptation of weights to chosen averaging method
+    weights = get_votes()
+    valid_votes = sum(weights.values()) - weights[0]
+    for key in weights.keys():
+        if only_electable and weights[key] / valid_votes < 0.03: # electable is consdidered from 3% even for coalitions to simplify
+            weights[key] = 0
+        elif not weighted:
+            weights[key] = 1  
+
+
     # iteration through all records
-    # it basically puts averages together, correctly, but not optimally TODO
+    # it basically puts averages together, correctly
     for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize):
-        if weighted:
-            chunk['weight'] = chunk['party_number'].map(get_votes())
-            xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
-        else:
-            xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
+        chunk['weight'] = chunk['party_number'].map(weights)
+        xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
+  
         all_xdfs.append(xdf)
 
     # second iteration of the algorith ensures pseudo O(logn) space efficiency
@@ -330,8 +306,8 @@ def raw2visualisable(input_file, size, weighted=True, only_electable=False, subj
 
     # export to a file
     file_prefix = "" if weighted else "un"
-    # export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}", index=False)
-    export_df.to_csv(f"./testxx", index=False)
+    if only_electable: file_prefix += "electable-"
+    export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}", index=False)
     print(f"{input_file} done")
 
 if __name__ == "__main__":
