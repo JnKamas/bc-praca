@@ -48,7 +48,6 @@ class Apportionment:
             self.probabilities = {key: prob / total_prob for key, prob in self.subject_votes.items()}
 
     def read_votes_from_csv(self, link):
-        print("link", link)
         with open(link, 'r', encoding='utf-8') as csvfile:
             data = csv.reader(csvfile)
             
@@ -273,15 +272,48 @@ def get_votes():
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
-def raw2visualisable(input_file, weighted=True):
+def raw2visualisable(input_file, size, weighted=True, only_electable=False, subjects=26):
     '''
     This method provides a transformation of .csv file containing generated data to a properly averaged form.
     The data is transformed from tens GB to few MB.
     The created files are then used to create a visualisation and they are stored in github repo.
     '''
+    # # number of records is size (all voters) * 0.03 (group size) * 500 (iterations) * subjects (number of electable subjects), parametres will be added later
+    # group_size = int(size * 0.03)
+    # records = subjects * group_size * 500
+    # divisor = size * subjects
+    # sums = {}
+
+    # # in following cycle we make sum o all vote changes. Then we divide it with divisor to receive average. this works in O(n) time and O(1) space efficiency.
+
+    # # not necessary, will do in try except
+    # for i in range(group_size):
+    #     sums[i] = 0
+
+    # start = True
+    # for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=1):
+    #     if start:
+    #         start = False
+    #         continue
+    #     if weighted:
+    #         chunk['weight'] = chunk['party_number'].map(get_votes())
+    #         sums[i] += chunk['weight'] * chunk['diff']
+    #     else:
+    #         sums[i] += chunk['diff']
+
+    # sums = [x / divisor for x in sums]
+
+    # # Creating a DataFrame from sums
+    # export_df = pd.DataFrame({'sums': sums})
+
+    # # Exporting the DataFrame to a CSV file
+    # export_df.to_csv('sums.csv', index=False)
+
+
+    # # OLD SOLUTION
     chunksize = 130000000
     all_xdfs = []
-
+    
     # iteration through all records
     # it basically puts averages together, correctly, but not optimally TODO
     for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize):
@@ -297,33 +329,13 @@ def raw2visualisable(input_file, weighted=True):
     export_df = result_df.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
 
     # export to a file
-    file_prefix = ""
-    if not weighted: file_prefix += "un"
-    export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}", index=False)
-
+    file_prefix = "" if weighted else "un"
+    # export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}", index=False)
+    export_df.to_csv(f"./testxx", index=False)
     print(f"{input_file} done")
 
 if __name__ == "__main__":
-    # Simulation parameters
-    voters = 10000
-    num_seats = 150
-    nit = 10
-    group_size = 1000
-    link='NRSR2023_clean.csv'
-
-    ap = Apportionment(num_seats, voters, link=link) 
-    # -> TODO higher tresholds for coalitions
-    print("No of votes from source:", sum(ap.subject_votes.values()))
-    print("Considered votes:", ap.voters)
-    print("No. of seats:", num_seats)
-
-    #apportionment test
-    result = ap.divide_seats("slovak")
-    if not (sum(result.values()) == 150): print(result.values()) 
-    else: print("seats ok")
-    if not (list(result.values()) == [32, 16, 11, 10, 42, 27, 12]): print(result.values()) 
-    else: print("apport ok")
-    print("Apportionment should work correctly.")
-
-    print(sum(ap.probabilities.values()))
-    ap.iterated_simulate('numpy', f'test2811_4.csv', nit=nit, group_size=group_size)
+    import time
+    start = time.time()
+    raw2visualisable("100k-large.csv", 100000)
+    print(time.time() - start)
