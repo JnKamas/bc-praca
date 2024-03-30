@@ -306,7 +306,7 @@ def raw2visualisable(input_file, size, weighted=True, only_electable=False, subj
 
     # export to a file
     file_prefix = "" if weighted else "un"
-    if only_electable: file_prefix += "electable-"
+    if only_electable: file_prefix = "electable-" + file_prefix
     export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}", index=False)
     print(f"{input_file} done")
 
