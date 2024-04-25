@@ -219,7 +219,7 @@ class Apportionment:
 
             
                 # NESTED LOOP TO TEST CHANGES
-                ap = Apportionment(self.num_seats, self.voters - group_size)
+                ap = Apportionment(self.num_seats, self.voters - group_size, treshold=self.treshold)
                 ap.subject_votes = results.copy()
                 ap.generate_probabilities()
                 # print(ap)
@@ -238,7 +238,6 @@ class Apportionment:
                         new_data = {'interation_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
                         writer.writerow(new_data)
                         # Append a record
-                        # return_df1.append(new_data)
 
                     for index, x in self.generate_additional_votes(1).items():
                         try: apx.subject_votes[index] += x
@@ -272,14 +271,14 @@ def get_votes():
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
-def raw2visualisable(input_file, size, weighted=True, only_electable=False, subjects=26):
+def raw2visualisable(input_file, weighted=True, only_electable=False):
     '''
     This method provides a transformation of .csv file containing generated data to a properly averaged form.
     The data is transformed from tens GB to few MB.
     The created files are then used to create a visualisation and they are stored in github repo.
     '''
 
-    chunksize = 130000000 #TODO adapt to subjects and group size
+    chunksize = 130000000
     all_xdfs = []
     
     # adaptation of weights to chosen averaging method
@@ -311,7 +310,4 @@ def raw2visualisable(input_file, size, weighted=True, only_electable=False, subj
     print(f"{input_file} done")
 
 if __name__ == "__main__":
-    import time
-    start = time.time()
-    raw2visualisable("100k-large.csv", 100000)
-    print(time.time() - start)
+    ...
