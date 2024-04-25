@@ -7,16 +7,17 @@ import csv
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
 
 class Apportionment:
 
-    def __init__(self, num_seats, voters, link=None):
+    def __init__(self, num_seats, voters, link=None, treshold=lambda x:5):
         self.num_seats = num_seats
         self.voters = voters
         self.subject_votes = {}
         self.subject_names = {}
-        self.treshold = lambda: 5
+        self.treshold = treshold
         if link: self.read_votes_from_csv(link) # else insert data manually
         self.probabilities = None 
         if link: self.generate_probabilities() # else generate probs manually
@@ -63,7 +64,7 @@ class Apportionment:
                     self.subject_names[subject_number] = subject_name
     
     def counted_votes(self):
-        return{x : y for x, y in self.subject_votes.items() if (((y * 100) / (sum(self.subject_votes.values()) - self.subject_votes[0])) > self.treshold() and x != 0)}
+        return{x : y for x, y in self.subject_votes.items() if (((y * 100) / (sum(self.subject_votes.values()) - self.subject_votes[0])) > self.treshold(x) and x != 0)}
 
 
     def slovak_apportionment(self):
@@ -213,32 +214,28 @@ class Apportionment:
 
                 results = self.simulate_results(method)
 
-                default_ap = Apportionment(self.num_seats, self.voters)
+                default_ap = Apportionment(self.num_seats, self.voters, treshold=self.treshold)
                 default_ap.subject_votes = results.copy()
                 main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats('slovak'))
 
             
                 # NESTED LOOP TO TEST CHANGES
-                ap = Apportionment(self.num_seats, self.voters - group_size)
+                ap = Apportionment(self.num_seats, self.voters - group_size, treshold=self.treshold)
                 ap.subject_votes = results.copy()
                 ap.generate_probabilities()
-                # print(ap)
 
                 for size in range(group_size, 0, -1):
                     for party in self.subject_names.keys():
                         apx = ap.copy()
-                        # print(apx)
                         try: apx.subject_votes[party] += size
                         except KeyError: apx.subject_votes[party] = size
                         seats_vector = self.dictionary_to_vector(apx.divide_seats('slovak'))
                         apx.subject_votes[party] -= size
 
                         distance = compare_vectors(main_seats_vector, seats_vector)
-                        
+
                         new_data = {'interation_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
                         writer.writerow(new_data)
-                        # Append a record
-                        # return_df1.append(new_data)
 
                     for index, x in self.generate_additional_votes(1).items():
                         try: apx.subject_votes[index] += x
@@ -265,31 +262,33 @@ def compare_vectors(first, second):
     return diff
 
 
-def get_votes():
+def get_votes(year):
     voters = 1000
-    num_seats = 150
-    link='NRSR2023_clean.csv'
+    num_seats = 150 
+    link=f'NRSR{year}_clean.csv'
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
-def raw2visualisable(input_file, size, weighted=True, only_electable=False, subjects=26):
+def raw2visualisable(input_file, size, weighted=True, only_electable=False, subjects=26, neglected=[], year=2023):
     '''
     This method provides a transformation of .csv file containing generated data to a properly averaged form.
     The data is transformed from tens GB to few MB.
     The created files are then used to create a visualisation and they are stored in github repo.
     '''
 
-    chunksize = 130000000 #TODO adapt to subjects and group size
+    chunksize = 13000000 #TODO adapt to subjects and group size
     all_xdfs = []
     
     # adaptation of weights to chosen averaging method
-    weights = get_votes()
+    weights = get_votes(year)
+    print(weights)
     valid_votes = sum(weights.values()) - weights[0]
     for key in weights.keys():
-        if only_electable and weights[key] / valid_votes < 0.03: # electable is consdidered from 3% even for coalitions to simplify
+        if (only_electable and (weights[key] / valid_votes < 0.03)) or int(key) in neglected: # electable is consdidered from 3% even for coalitions to simplify
             weights[key] = 0
         elif not weighted:
             weights[key] = 1  
+    print(weights)
 
 
     # iteration through all records
@@ -307,11 +306,8 @@ def raw2visualisable(input_file, size, weighted=True, only_electable=False, subj
     # export to a file
     file_prefix = "" if weighted else "un"
     if only_electable: file_prefix = "electable-" + file_prefix
-    export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}", index=False)
+    export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}{'_'.join(str(xx) for xx in neglected)}", index=False)
     print(f"{input_file} done")
 
 if __name__ == "__main__":
-    import time
-    start = time.time()
-    raw2visualisable("100k-large.csv", 100000)
-    print(time.time() - start)
+    raw2visualisable("1m-2020-fixed.csv", 1000000, weighted=False, only_electable=True, neglected=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], year=2020)
