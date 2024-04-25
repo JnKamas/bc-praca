@@ -310,4 +310,4 @@ def raw2visualisable(input_file, size, weighted=True, only_electable=False, subj
     print(f"{input_file} done")
 
 if __name__ == "__main__":
-    raw2visualisable("1m-2020-fixed.csv", 1000000, weighted=False, only_electable=True, neglected=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], year=2020)
+    raw2visualisable("1m-2020.csv", 1000000, weighted=False, only_electable=True, neglected=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], year=2020)
