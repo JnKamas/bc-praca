@@ -265,7 +265,7 @@ def compare_vectors(first, second):
 def get_votes(year):
     voters = 1000
     num_seats = 150 
-    link=f'NRSR{year}_clean.csv'
+    link=f'./real_data/NRSR{year}_clean.csv'
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
