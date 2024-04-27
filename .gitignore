@@ -8,3 +8,8 @@ raw_data
 *todo*
 *.png
 *.db
+
+#caches
+
+*.pyc
+__pycache__/apportionment.cpython-311.pyc
