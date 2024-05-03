@@ -33,7 +33,6 @@ class Apportionment:
             )"""
         )
 
-
     def copy(self):
         cpy = Apportionment(num_seats=self.num_seats, voters=self.voters)
         cpy.subject_votes = self.subject_votes.copy()
@@ -177,13 +176,6 @@ class Apportionment:
         sorted_results = {k: results[k] for k in sorted(results.keys())}
         return sorted_results
 
-    def advanced_simulation(self):
-        # Implement advanced method logic here
-        print('Advanced simulation method implemented.')
-        pass
-
-
-
     def simulate_results(self, method):
         if method == "basic":
             return self.basic_simulation()
@@ -191,10 +183,8 @@ class Apportionment:
             return self.numpy_simulation()
         elif method == "boxes":
             return self.boxes_simulation()
-        elif method == "advanced":
-            return self.advanced_simulation()
         else:
-            print("Invalid option. Please choose 'basic,' 'numpy,' 'boxes,' or 'advanced'.")
+            print("Invalid option. Please choose 'basic', 'numpy' or 'boxes'.")
 
 
 
@@ -282,15 +272,12 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
     
     # adaptation of weights to chosen averaging method
     weights = get_votes(year)
-    print(weights)
     valid_votes = sum(weights.values()) - weights[0]
     for key in weights.keys():
         if (only_electable and (weights[key] / valid_votes < 0.03)) or int(key) in neglected: # electable is consdidered from 3% even for coalitions to simplify
             weights[key] = 0
         elif not weighted:
             weights[key] = 1  
-    print(weights)
-
 
     # iteration through all records
     # it basically puts averages together, correctly
