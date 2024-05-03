@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import constants
 
 
 class Apportionment:
@@ -269,7 +270,7 @@ def get_votes(year):
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
-def raw2visualisable(input_file, size, weighted=True, only_electable=False, subjects=26, neglected=[], year=2023):
+def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=[], year=2023):
     '''
     This method provides a transformation of .csv file containing generated data to a properly averaged form.
     The data is transformed from tens GB to few MB.
