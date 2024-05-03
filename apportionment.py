@@ -1,13 +1,17 @@
 # This file contains by encapsulated backend to make programming all the simulations easier
 # Political party number 0 is artificial - represents non-voters and invalid votes
 
+# libraries
 import random
 import time
 import csv
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import os
+
+# my files
 import constants
 
 
