@@ -267,7 +267,9 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
     The created files are then used to create a visualisation and they are stored in github repo.
     '''
 
-    chunksize = 13000000 #TODO adapt to subjects and group size
+    subjects = constants.subjects[year]
+
+    chunksize = 26000000
     all_xdfs = []
     
     # adaptation of weights to chosen averaging method
@@ -296,6 +298,3 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
     if only_electable: file_prefix = "electable-" + file_prefix
     export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}{'_'.join(str(xx) for xx in neglected)}", index=False)
     print(f"{input_file} done")
-
-if __name__ == "__main__":
-    raw2visualisable("1m-2020.csv", 1000000, weighted=False, only_electable=True, neglected=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], year=2020)
