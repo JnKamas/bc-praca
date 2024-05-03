@@ -192,7 +192,7 @@ class Apportionment:
 
 
 
-    def iterated_simulate(self, method, file, nit=10, group_size=10):
+    def iterated_simulate(self, method, file, year, nit=10, group_size=10, divide="slovak", coalition=False):
 
         print("Initializing simulation...")
         start_time = time.time()
@@ -211,8 +211,7 @@ class Apportionment:
 
                 default_ap = Apportionment(self.num_seats, self.voters, treshold=self.treshold)
                 default_ap.subject_votes = results.copy()
-                main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats('slovak'))
-
+                main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats(divide))
             
                 # NESTED LOOP TO TEST CHANGES
                 ap = Apportionment(self.num_seats, self.voters - group_size, treshold=self.treshold)
@@ -224,10 +223,10 @@ class Apportionment:
                         apx = ap.copy()
                         try: apx.subject_votes[party] += size
                         except KeyError: apx.subject_votes[party] = size
-                        seats_vector = self.dictionary_to_vector(apx.divide_seats('slovak'))
+                        seats_vector = self.dictionary_to_vector(apx.divide_seats(divide))
                         apx.subject_votes[party] -= size
 
-                        distance = compare_vectors(main_seats_vector, seats_vector)
+                        distance = compare_vectors(main_seats_vector, seats_vector, year, coalition)
 
                         new_data = {'interation_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
                         writer.writerow(new_data)
@@ -250,7 +249,11 @@ class Apportionment:
 
         return result_vector
     
-def compare_vectors(first, second):
+def compare_vectors(first, second, year, coalition):
+    if coalition:
+        # in this case it will return total mandates of real coalition that created government after those elections
+        mandates = {i : second[i-1] for i in range(1, len(second) + 1)}
+        return sum(mandates[x] for x in constants.winning_coalition[year])
     diff = 0
     for i in range(len(first)):
         diff += abs(first[i] - second[i])
@@ -302,3 +305,28 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
     if only_electable: file_prefix = "electable-" + file_prefix
     export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}{'_'.join(str(xx) for xx in neglected)}", index=False)
     print(f"{input_file} done")
+
+if __name__ == "__main__":
+    # Simulation parameters
+    voters = 100000
+    num_seats = 150
+    nit = 3
+    group_size = int(0.03 * voters)
+    link='./real_data/NRSR2023_clean.csv'
+    file='test1m-2023coal.csv'
+
+    ap = Apportionment(num_seats, voters, link=link) #, treshold=lambda x: 7 if (x == 4 or x == 16) else 10 if x == 5 else 5) 
+    print("No of votes from source:", sum(ap.subject_votes.values()))
+    print("Considered votes:", ap.voters)
+    print("No. of seats:", num_seats)
+
+    #apportionment test
+    result = ap.divide_seats("slovak")
+    if not (sum(result.values()) == 150): print(result.values()) 
+    else: print("seats ok")
+    if not (sorted(list(result.values())) == [61, 18, 17, 17, 15, 13, 9]): print(result.values()) 
+    else: print("apport ok")
+    print("Apportionment should work correctly.")
+
+    print("sum of probs:", sum(ap.probabilities.values()))
+    ap.iterated_simulate('boxes', file, 2023, nit=nit, group_size=group_size, coalition=True)
