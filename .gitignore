@@ -12,4 +12,4 @@ raw_data
 #caches
 
 *.pyc
-__pycache__/apportionment.cpython-311.pyc
+__pycache__
