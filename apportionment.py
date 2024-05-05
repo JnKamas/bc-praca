@@ -192,12 +192,15 @@ class Apportionment:
 
 
 
-    def iterated_simulate(self, method, file, year, nit=10, group_size=10, divide="slovak", coalition=False):
+    def iterated_simulate(self, method, file, year, nit=10, group_size=10, divide="slovak", coalition=False, multi=False):
 
         print("Initializing simulation...")
         start_time = time.time()
 
         columns = ['interation_number', 'party_number', 'samples', 'diff']
+
+        if multi:
+            columns = ['interation_number', 'party_number', 'party2_number', 'samples', 'diff', "proportion"]
 
         with open(file, 'w', newline='', encoding='utf-8') as csvfile:
 
@@ -218,18 +221,46 @@ class Apportionment:
                 ap.subject_votes = results.copy()
                 ap.generate_probabilities()
 
+                # parties with at least 3% - used to optimize multichoice in group
+                likely_electable = []
+                for x, y in self.subject_votes.items():
+                    if ((y * 100) / (sum(self.subject_votes.values()) - self.subject_votes[0])) > 3 and x != 0:
+                        likely_electable.append(x)
+
                 for size in range(group_size, 0, -1):
-                    for party in self.subject_names.keys():
-                        apx = ap.copy()
-                        try: apx.subject_votes[party] += size
-                        except KeyError: apx.subject_votes[party] = size
-                        seats_vector = self.dictionary_to_vector(apx.divide_seats(divide))
-                        apx.subject_votes[party] -= size
+                    if multi:
+                        for party in likely_electable:
+                            for party2 in likely_electable:
+                                if party == party2: continue
+                                for prop in [90, 80, 70, 60, 50]: 
+                                    size1 = int(size * (prop / 100))
+                                    size2 = size - size1
+                                    apx = ap.copy()
+                                    try: apx.subject_votes[party] += size1
+                                    except KeyError: apx.subject_votes[party] = size1
+                                    try: apx.subject_votes[party2] += size2
+                                    except KeyError: apx.subject_votes[party2] = size2
+                                    seats_vector = self.dictionary_to_vector(apx.divide_seats(divide))
+                                    apx.subject_votes[party] -= size1
+                                    apx.subject_votes[party2] -= size2
 
-                        distance = compare_vectors(main_seats_vector, seats_vector, year, coalition)
+                                    distance = compare_vectors(main_seats_vector, seats_vector, year, coalition)
 
-                        new_data = {'interation_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
-                        writer.writerow(new_data)
+                                    new_data = {'interation_number': i+1, 'party_number': party, 'party2_number' : party2, 'samples' : size, 'diff' : distance, 'proportion' : prop}
+                                    writer.writerow(new_data)
+                    else:
+                        for party in self.subject_names.keys():
+                            apx = ap.copy()
+                            try: apx.subject_votes[party] += size
+                            except KeyError: apx.subject_votes[party] = size
+                            seats_vector = self.dictionary_to_vector(apx.divide_seats(divide))
+                            apx.subject_votes[party] -= size
+
+                            distance = compare_vectors(main_seats_vector, seats_vector, year, coalition)
+
+                            new_data = {'interation_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
+                            writer.writerow(new_data)
+                    
 
                     for index, x in self.generate_additional_votes(1).items():
                         try: apx.subject_votes[index] += x
@@ -313,9 +344,9 @@ if __name__ == "__main__":
     nit = 3
     group_size = int(0.03 * voters)
     link='./real_data/NRSR2023_clean.csv'
-    file='test1m-2023coal.csv'
+    file='test1m-2023multi.csv'
 
-    ap = Apportionment(num_seats, voters, link=link) #, treshold=lambda x: 7 if (x == 4 or x == 16) else 10 if x == 5 else 5) 
+    ap = Apportionment(num_seats, voters, link=link) 
     print("No of votes from source:", sum(ap.subject_votes.values()))
     print("Considered votes:", ap.voters)
     print("No. of seats:", num_seats)
@@ -329,4 +360,4 @@ if __name__ == "__main__":
     print("Apportionment should work correctly.")
 
     print("sum of probs:", sum(ap.probabilities.values()))
-    ap.iterated_simulate('boxes', file, 2023, nit=nit, group_size=group_size, coalition=True)
+    ap.iterated_simulate('boxes', file, 2023, nit=nit, group_size=group_size, multi=True)
