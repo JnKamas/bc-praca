@@ -145,16 +145,37 @@ class Apportionment:
 
 
     def dhont_apportionment(self):
-        results = {}
-        counted_votes = self.counted_votes()
-        sorted_subject_votes = sorted(counted_votes.items(), key=lambda x: x[1], reverse=True)
-        allocated_seats = {subject_number: 0 for subject_number in self.subject_votes}
-        for _ in range(self.num_seats):
-            subject_number, votes = max(sorted_subject_votes, key=lambda x: x[1] / (allocated_seats[x[0]] + 1))
-            allocated_seats[subject_number] += 1
-            results[subject_number] = allocated_seats[subject_number]
-        return results
+        # credits: https://github.com/simberaj/votelib/blob/master/docs/examples/sk_nr_2020.ipynb
+        core_evaluator = votelib.evaluate.proportional.HighestAverages(
+            'd_hondt'
+        )
 
+        standard_elim = votelib.evaluate.threshold.RelativeThreshold(
+            decimal.Decimal('.05'), accept_equal=True
+        )
+        mem_2_3_elim = votelib.evaluate.threshold.RelativeThreshold(
+            decimal.Decimal('.07'), accept_equal=True
+        )
+        mem_4plus_elim = votelib.evaluate.threshold.RelativeThreshold(
+            decimal.Decimal('.1'), accept_equal=True
+        )
+        preselector = votelib.evaluate.threshold.CoalitionMemberBracketer(
+            {1: standard_elim, 2: mem_2_3_elim, 3: mem_2_3_elim},
+            default=mem_4plus_elim
+        )
+
+        evaluator = votelib.evaluate.core.FixedSeatCount(
+            votelib.evaluate.core.Conditioned(preselector, core_evaluator), 150
+        )
+
+        votes = {
+            votelib.candidate.PoliticalParty(self.subject_names[x]): y 
+            for x, y in self.subject_votes.items()
+            if int(x) != 0
+        }
+
+        evaluated = evaluator.evaluate(votes)
+        return {self.subject_names_inv[party.name] : mandates for party, mandates in evaluated.items()}
 
     def divide_seats(self, method):
         if method == "slovak":
