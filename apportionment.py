@@ -11,6 +11,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
+# 
+import decimal
+import votelib.candidate
+import votelib.evaluate.core
+import votelib.evaluate.threshold
+import votelib.evaluate.proportional
+
 # my files
 import constants
 
@@ -22,6 +29,7 @@ class Apportionment:
         self.voters = voters
         self.subject_votes = {}
         self.subject_names = {}
+        self.subject_names_inv = {}
         self.treshold = treshold
         if link: self.read_votes_from_csv(link) # else insert data manually
         self.probabilities = None 
@@ -41,6 +49,7 @@ class Apportionment:
         cpy = Apportionment(num_seats=self.num_seats, voters=self.voters)
         cpy.subject_votes = self.subject_votes.copy()
         cpy.subject_names = self.subject_names
+        cpy.subject_names_inv = self.subject_names_inv
         cpy.treshold = self.treshold
         cpy.probabilities = self.probabilities
         cpy.boxes = self.boxes
@@ -66,6 +75,7 @@ class Apportionment:
                     valid_votes = int(row[2].strip())
                     self.subject_votes[subject_number] = valid_votes
                     self.subject_names[subject_number] = subject_name
+        self.subject_names_inv = invert_dict(self.subject_names)
     
     def counted_votes(self):
         return{x : y for x, y in self.subject_votes.items() if (((y * 100) / (sum(self.subject_votes.values()) - self.subject_votes[0])) > self.treshold(x) and x != 0)}
@@ -101,20 +111,37 @@ class Apportionment:
 
 
     def hagenbach_bischoff_apportionment(self):
-        results = {}
-        counted_votes = self.counted_votes()  # Assuming this is a method to count votes
-        sorted_subject_votes = sorted(counted_votes.items(), key=lambda x: x[1], reverse=True)
-        allocated_seats = {subject_number: 0 for subject_number in self.subject_votes}
-        
-        for _ in range(self.num_seats):  # Assuming self.num_seats represents the total seats available
-            subject_number, votes = max(
-                sorted_subject_votes,
-                key=lambda x: x[1] / (allocated_seats[x[0]] + 1)
-            )
-            allocated_seats[subject_number] += 1
-            results[subject_number] = allocated_seats[subject_number]
-        
-        return results
+        # credits: https://github.com/simberaj/votelib/blob/master/docs/examples/sk_nr_2020.ipynb
+        core_evaluator = votelib.evaluate.proportional.LargestRemainder(
+            'hagenbach_bischoff'
+        )
+
+        standard_elim = votelib.evaluate.threshold.RelativeThreshold(
+            decimal.Decimal('.05'), accept_equal=True
+        )
+        mem_2_3_elim = votelib.evaluate.threshold.RelativeThreshold(
+            decimal.Decimal('.07'), accept_equal=True
+        )
+        mem_4plus_elim = votelib.evaluate.threshold.RelativeThreshold(
+            decimal.Decimal('.1'), accept_equal=True
+        )
+        preselector = votelib.evaluate.threshold.CoalitionMemberBracketer(
+            {1: standard_elim, 2: mem_2_3_elim, 3: mem_2_3_elim},
+            default=mem_4plus_elim
+        )
+
+        evaluator = votelib.evaluate.core.FixedSeatCount(
+            votelib.evaluate.core.Conditioned(preselector, core_evaluator), 150
+        )
+
+        votes = {
+            votelib.candidate.PoliticalParty(self.subject_names[x]): y 
+            for x, y in self.subject_votes.items()
+            if int(x) != 0
+        }
+
+        evaluated = evaluator.evaluate(votes)
+        return {self.subject_names_inv[party.name] : mandates for party, mandates in evaluated.items()}
 
 
     def dhont_apportionment(self):
@@ -290,6 +317,8 @@ def compare_vectors(first, second, year, coalition):
         diff += abs(first[i] - second[i])
     return diff
 
+def invert_dict(original_dict):
+    return {v: k for k, v in original_dict.items()}
 
 def get_votes(year):
     voters = 1000
@@ -298,11 +327,16 @@ def get_votes(year):
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
-def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=[], year=2023):
+def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=[], year=2023, multi=False):
     '''
     This method provides a transformation of .csv file containing generated data to a properly averaged form.
     The data is transformed from tens GB to few MB.
     The created files are then used to create a visualisation and they are stored in github repo.
+    '''
+    if multi == True and weighted == True:
+        raise NotImplementedError
+    '''
+    for multi, weighted is NOT IMPLEMENTED
     '''
 
     subjects = constants.subjects[year]
@@ -323,13 +357,20 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
     # it basically puts averages together, correctly
     for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize):
         chunk['weight'] = chunk['party_number'].map(weights)
-        xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
+        if multi:
+            xdf = chunk.groupby(['samples', 'proportion']).apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
+        else:
+            xdf = chunk.groupby('samples').apply(lambda x: np.average(x['diff'], weights=x['weight'])).reset_index(name='diff')
   
         all_xdfs.append(xdf)
 
     # second iteration of the algorith ensures pseudo O(logn) space efficiency
     result_df = pd.concat(all_xdfs, axis=0, ignore_index=True)
-    export_df = result_df.groupby('samples').apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
+
+    if multi:
+        export_df = result_df.groupby(['samples', 'proportion']).apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
+    else:
+        export_df = result_df.groupby(['samples']).apply(lambda x: np.average(x['diff'])).reset_index(name='diff')
 
     # export to a file
     file_prefix = "" if weighted else "un"
@@ -339,12 +380,12 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
 
 if __name__ == "__main__":
     # Simulation parameters
-    voters = 100000
+    voters = 1000000
     num_seats = 150
     nit = 3
     group_size = int(0.03 * voters)
     link='./real_data/NRSR2023_clean.csv'
-    file='test1m-2023multi.csv'
+    file='1m-2023temp_testxx.csv'
 
     ap = Apportionment(num_seats, voters, link=link) 
     print("No of votes from source:", sum(ap.subject_votes.values()))
@@ -352,7 +393,7 @@ if __name__ == "__main__":
     print("No. of seats:", num_seats)
 
     #apportionment test
-    result = ap.divide_seats("slovak")
+    result = ap.divide_seats("hagenbach bischoff")
     if not (sum(result.values()) == 150): print(result.values()) 
     else: print("seats ok")
     if not (sorted(list(result.values())) == [61, 18, 17, 17, 15, 13, 9]): print(result.values()) 
@@ -360,4 +401,7 @@ if __name__ == "__main__":
     print("Apportionment should work correctly.")
 
     print("sum of probs:", sum(ap.probabilities.values()))
-    ap.iterated_simulate('boxes', file, 2023, nit=nit, group_size=group_size, multi=True)
+    if not os.path.exists(file):
+        ap.iterated_simulate('boxes', file, 1994, nit=nit, group_size=group_size)
+    else:
+        print("Simulation did not happen, file already exists!")
