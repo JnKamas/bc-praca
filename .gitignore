@@ -4,13 +4,7 @@ old_notebooks
 raw_data
 *cache*
 __pycache__
-# todos
 
 *todo*
 *.png
 *.db
-
-#caches
-
-*.pyc
-__pycache__
