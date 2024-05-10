@@ -8,3 +8,4 @@ __pycache__
 *todo*
 *.png
 *.db
+*.db-journal
