@@ -84,6 +84,40 @@ class Apportionment:
 
     def slovak_apportionment(self):
 
+        ## THIS SHOULD BE CHECKED IF I HAVE TIME
+
+        # # credits: https://github.com/simberaj/votelib/blob/master/docs/examples/sk_nr_2020.ipynb
+        # core_evaluator = votelib.evaluate.proportional.LargestRemainder(
+        #     'hagenbach_bischoff_rounded'
+        # )
+
+        # standard_elim = votelib.evaluate.threshold.RelativeThreshold(
+        #     decimal.Decimal('.05'), accept_equal=True
+        # )
+        # mem_2_3_elim = votelib.evaluate.threshold.RelativeThreshold(
+        #     decimal.Decimal('.07'), accept_equal=True
+        # )
+        # mem_4plus_elim = votelib.evaluate.threshold.RelativeThreshold(
+        #     decimal.Decimal('.1'), accept_equal=True
+        # )
+        # preselector = votelib.evaluate.threshold.CoalitionMemberBracketer(
+        #     {1: standard_elim, 2: mem_2_3_elim, 3: mem_2_3_elim},
+        #     default=mem_4plus_elim
+        # )
+
+        # evaluator = votelib.evaluate.core.FixedSeatCount(
+        #     votelib.evaluate.core.Conditioned(preselector, core_evaluator), 150
+        # )
+        # print(self.subject_votes)
+        # votes = {
+        #     votelib.candidate.PoliticalParty(self.subject_names[x]): y 
+        #     for x, y in self.subject_votes.items()
+        #     if int(x) != 0
+        # }
+
+        # evaluated = evaluator.evaluate(votes)
+        # return {self.subject_names_inv[party.name] : mandates for party, mandates in evaluated.items()}
+
         def get_top_x_indexes(numbers, x):
             if x >= len(numbers):
                 return list(range(len(numbers)))
