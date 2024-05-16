@@ -383,7 +383,7 @@ def get_votes(year):
     ap = Apportionment(num_seats, voters, link=link) 
     return ap.subject_votes
 
-def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=[], year=2023, multi=False):
+def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=[], year=2023, multi=False, subj=None):
     '''
     This method provides a transformation of .csv file containing generated data to a properly averaged form.
     The data is transformed from tens GB to few MB.
@@ -431,7 +431,7 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
     # export to a file
     file_prefix = "" if weighted else "un"
     if only_electable: file_prefix = "electable-" + file_prefix
-    export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}{'_'.join(str(xx) for xx in neglected)}", index=False)
+    export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}{'_'.join(str(xx) for xx in subj)}", index=False)
     print(f"{input_file} done")
 
 if __name__ == "__main__":
