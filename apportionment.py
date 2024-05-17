@@ -83,41 +83,8 @@ class Apportionment:
 
 
     def slovak_apportionment(self):
-
-        ## THIS SHOULD BE CHECKED IF I HAVE TIME
-
-        # # credits: https://github.com/simberaj/votelib/blob/master/docs/examples/sk_nr_2020.ipynb
-        # core_evaluator = votelib.evaluate.proportional.LargestRemainder(
-        #     'hagenbach_bischoff_rounded'
-        # )
-
-        # standard_elim = votelib.evaluate.threshold.RelativeThreshold(
-        #     decimal.Decimal('.05'), accept_equal=True
-        # )
-        # mem_2_3_elim = votelib.evaluate.threshold.RelativeThreshold(
-        #     decimal.Decimal('.07'), accept_equal=True
-        # )
-        # mem_4plus_elim = votelib.evaluate.threshold.RelativeThreshold(
-        #     decimal.Decimal('.1'), accept_equal=True
-        # )
-        # preselector = votelib.evaluate.threshold.CoalitionMemberBracketer(
-        #     {1: standard_elim, 2: mem_2_3_elim, 3: mem_2_3_elim},
-        #     default=mem_4plus_elim
-        # )
-
-        # evaluator = votelib.evaluate.core.FixedSeatCount(
-        #     votelib.evaluate.core.Conditioned(preselector, core_evaluator), 150
-        # )
-        # print(self.subject_votes)
-        # votes = {
-        #     votelib.candidate.PoliticalParty(self.subject_names[x]): y 
-        #     for x, y in self.subject_votes.items()
-        #     if int(x) != 0
-        # }
-
-        # evaluated = evaluator.evaluate(votes)
-        # return {self.subject_names_inv[party.name] : mandates for party, mandates in evaluated.items()}
-
+        # This method unlike other apportionment methods, was programmed by me, since few adaptations were required to make it work correctly. 
+        
         def get_top_x_indexes(numbers, x):
             if x >= len(numbers):
                 return list(range(len(numbers)))
@@ -137,7 +104,6 @@ class Apportionment:
         seats_given = [int(x / republic_number) for x in counted_votes.values()]
         division_remainders = [x / republic_number - int(x / republic_number) for x in counted_votes.values()]
         if sum(seats_given) > 150:
-            # this requires more testing
             seats_given[division_remainders.index(min(division_remainders))] -= 1
         else:    
             for x in get_top_x_indexes(division_remainders, self.num_seats - sum(seats_given)):
@@ -179,7 +145,7 @@ class Apportionment:
         return {self.subject_names_inv[party.name] : mandates for party, mandates in evaluated.items()}
 
 
-    def dhont_apportionment(self):
+    def dhondt_apportionment(self):
         # credits: https://github.com/simberaj/votelib/blob/master/docs/examples/sk_nr_2020.ipynb
         core_evaluator = votelib.evaluate.proportional.HighestAverages(
             'd_hondt'
@@ -215,12 +181,12 @@ class Apportionment:
     def divide_seats(self, method):
         if method == "slovak":
             return self.slovak_apportionment()
-        elif method == "d'hont":
-            return self.dhont_apportionment()
-        elif method == "hagenbach bischoff":
+        elif method == "d_hondt":
+            return self.dhondt_apportionment()
+        elif method == "hagenbach_bischoff":
             return self.hagenbach_bischoff_apportionment()
         else:
-            print("Invalid method choice. Please choose 'slovak', 'd'hont' or 'hagenbach bischoff'.")
+            print("Invalid method choice. Please choose 'slovak', 'd_hondt' or 'hagenbach_bischoff'.")
 
     def generate_additional_votes(self, count):
         keys, probs = zip(*self.probabilities.items())
@@ -228,26 +194,7 @@ class Apportionment:
         results = {key: np.count_nonzero(choices == key) for key in set(choices)}
         return results
 
-    def basic_simulation(self): ## obsolete
-        choices = []
-        for _ in range(self.voters):
-            choice = random.choices(list(self.probabilities.keys()), list(self.probabilities.values()))[0]
-            choices.append(choice)
-
-        results = {key: choices.count(key) for key in set(choices)}
-        sorted_results = {k: results[k] for k in sorted(results.keys())}
-        return sorted_results
-
-    def numpy_simulation(self):
-        keys, probs = zip(*self.probabilities.items())
-
-        choices = np.random.choice(keys, self.voters, p=probs)
-
-        results = {key: np.count_nonzero(choices == key) for key in set(choices)}
-        sorted_results = {k: results[k] for k in sorted(results.keys())}
-        return sorted_results
-
-    def boxes_simulation(self):
+    def simulate_results(self): # only boxes method was left since it is the fastest
         keys, probs = zip(*self.probabilities.items())
 
         if self.boxes == None:
@@ -263,19 +210,7 @@ class Apportionment:
         sorted_results = {k: results[k] for k in sorted(results.keys())}
         return sorted_results
 
-    def simulate_results(self, method):
-        if method == "basic":
-            return self.basic_simulation()
-        elif method == "numpy":
-            return self.numpy_simulation()
-        elif method == "boxes":
-            return self.boxes_simulation()
-        else:
-            print("Invalid option. Please choose 'basic', 'numpy' or 'boxes'.")
-
-
-
-    def iterated_simulate(self, method, file, year, nit=10, group_size=10, divide="slovak", coalition=False, multi=False):
+    def iterated_simulate(self, file, year, nit=10, group_size=10, divide="slovak", coalition=False, multi=False):
 
         print("Initializing simulation...")
         start_time = time.time()
@@ -293,16 +228,22 @@ class Apportionment:
             for i in range(nit):
                 print(f'{i+1} / {nit}')
 
-                results = self.simulate_results(method)
+                results = self.simulate_results()
 
                 default_ap = Apportionment(self.num_seats, self.voters, treshold=self.treshold)
+                default_ap.subject_names = self.subject_names
+                default_ap.subject_names_inv = self.subject_names_inv
+
                 default_ap.subject_votes = results.copy()
                 main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats(divide))
             
                 # NESTED LOOP TO TEST CHANGES
                 ap = Apportionment(self.num_seats, self.voters - group_size, treshold=self.treshold)
                 ap.subject_votes = results.copy()
+                ap.subject_names = self.subject_names
+                ap.subject_names_inv = self.subject_names_inv
                 ap.generate_probabilities()
+
 
                 # parties with at least 3% - used to optimize multichoice in group
                 likely_electable = []
@@ -319,6 +260,7 @@ class Apportionment:
                                     size1 = int(size * (prop / 100))
                                     size2 = size - size1
                                     apx = ap.copy()
+
                                     try: apx.subject_votes[party] += size1
                                     except KeyError: apx.subject_votes[party] = size1
                                     try: apx.subject_votes[party2] += size2
@@ -394,10 +336,7 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
     '''
     for multi, weighted is NOT IMPLEMENTED
     '''
-
-    subjects = constants.subjects[year]
-
-    chunksize = 26000000
+    chunksize = constants.subjects[year] * 1000000
     all_xdfs = []
     
     # adaptation of weights to chosen averaging method
@@ -436,7 +375,7 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
 
 if __name__ == "__main__":
     # Simulation parameters
-    voters = 1000000
+    voters = 100000
     num_seats = 150
     nit = 3
     group_size = int(0.03 * voters)
@@ -449,7 +388,7 @@ if __name__ == "__main__":
     print("No. of seats:", num_seats)
 
     #apportionment test
-    result = ap.divide_seats("hagenbach bischoff")
+    result = ap.divide_seats("slovak")
     if not (sum(result.values()) == 150): print(result.values()) 
     else: print("seats ok")
     if not (sorted(list(result.values())) == [61, 18, 17, 17, 15, 13, 9]): print(result.values()) 
@@ -457,7 +396,4 @@ if __name__ == "__main__":
     print("Apportionment should work correctly.")
 
     print("sum of probs:", sum(ap.probabilities.values()))
-    if not os.path.exists(file):
-        ap.iterated_simulate('boxes', file, 1994, nit=nit, group_size=group_size)
-    else:
-        print("Simulation did not happen, file already exists!")
+    ap.iterated_simulate(file, 2023, nit=nit, group_size=group_size)
