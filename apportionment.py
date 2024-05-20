@@ -215,10 +215,14 @@ class Apportionment:
         print("Initializing simulation...")
         start_time = time.time()
 
-        columns = ['interation_number', 'party_number', 'samples', 'diff']
+        columns = ['iteration_number', 'party_number', 'samples', 'diff']
+
+        if divide == "all":
+            columns = ['iteration_number', 'party_number', 'samples', 'diff', 'apport']
 
         if multi:
-            columns = ['interation_number', 'party_number', 'party2_number', 'samples', 'diff', "proportion"]
+            columns = ['iteration_number', 'party_number', 'party2_number', 'samples', 'diff', "proportion"]
+
 
         with open(file, 'w', newline='', encoding='utf-8') as csvfile:
 
@@ -235,7 +239,7 @@ class Apportionment:
                 default_ap.subject_names_inv = self.subject_names_inv
 
                 default_ap.subject_votes = results.copy()
-                main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats(divide))
+                main_seats_vector = self.dictionary_to_vector(default_ap.divide_seats(divide if divide != "all" else "slovak"))
             
                 # NESTED LOOP TO TEST CHANGES
                 ap = Apportionment(self.num_seats, self.voters - group_size, treshold=self.treshold)
@@ -271,8 +275,19 @@ class Apportionment:
 
                                     distance = compare_vectors(main_seats_vector, seats_vector, year, coalition)
 
-                                    new_data = {'interation_number': i+1, 'party_number': party, 'party2_number' : party2, 'samples' : size, 'diff' : distance, 'proportion' : prop}
+                                    new_data = {'iteration_number': i+1, 'party_number': party, 'party2_number' : party2, 'samples' : size, 'diff' : distance, 'proportion' : prop}
                                     writer.writerow(new_data)
+                    elif divide == "all":
+                        for party in self.subject_names.keys():
+                            apx = ap.copy()
+                            try: apx.subject_votes[party] += size
+                            except KeyError: apx.subject_votes[party] = size
+                            for apport in ['slovak', 'hagenbach_bischoff', 'd_hondt']:
+                                seats_vector = self.dictionary_to_vector(apx.divide_seats(apport))
+                                distance = compare_vectors(main_seats_vector, seats_vector, year, coalition)
+                                new_data = {'iteration_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance, 'apport' : apport}
+                                writer.writerow(new_data)
+                            apx.subject_votes[party] -= size                
                     else:
                         for party in self.subject_names.keys():
                             apx = ap.copy()
@@ -283,7 +298,7 @@ class Apportionment:
 
                             distance = compare_vectors(main_seats_vector, seats_vector, year, coalition)
 
-                            new_data = {'interation_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
+                            new_data = {'iteration_number': i+1, 'party_number': party, 'samples' : size, 'diff' : distance}
                             writer.writerow(new_data)
                     
 
@@ -375,7 +390,7 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
 
 if __name__ == "__main__":
     # Simulation parameters
-    voters = 100000
+    voters = 1000000
     num_seats = 150
     nit = 3
     group_size = int(0.03 * voters)
@@ -396,4 +411,4 @@ if __name__ == "__main__":
     print("Apportionment should work correctly.")
 
     print("sum of probs:", sum(ap.probabilities.values()))
-    ap.iterated_simulate(file, 2023, nit=nit, group_size=group_size)
+    ap.iterated_simulate(file, 2023, nit=nit, group_size=group_size, divide="all")

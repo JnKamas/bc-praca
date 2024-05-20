@@ -9,3 +9,5 @@ __pycache__
 *.png
 *.db
 *.db-journal
+
+*temp*
