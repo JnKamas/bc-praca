@@ -1,15 +1,7 @@
-# simulation results
-old_data
-old_notebooks
 raw_data
-*cache*
+pictures
+
 __pycache__
 
-*todo*
-*.png
-*.db
-*.db-journal
 
-*temp*
 
-svk podklad.ipynb

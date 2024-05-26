@@ -34,7 +34,7 @@ class Apportionment:
         self.treshold = treshold
         if link: self.read_votes_from_csv(link) # else insert data manually
         self.probabilities = None 
-        if link: self.generate_probabilities() # else generate probs manually
+        if link: self.generate_probabilities() # else generate probabilities manually
         self.boxes = None
     
     def __str__(self):
@@ -46,6 +46,7 @@ class Apportionment:
             )"""
         )
 
+    # copies instance of Apportionment class
     def copy(self):
         cpy = Apportionment(num_seats=self.num_seats, voters=self.voters)
         cpy.subject_votes = self.subject_votes.copy()
@@ -56,12 +57,13 @@ class Apportionment:
         cpy.boxes = self.boxes
         return cpy
 
+    # generates probabilities based on real data votes
     def generate_probabilities(self):
-        # requires numeric improvement (probably logarithms instead)
         total_prob = sum(self.subject_votes.values())
         if total_prob != 1:
             self.probabilities = {key: prob / total_prob for key, prob in self.subject_votes.items()}
 
+    # reads data from a file, link is a path to file
     def read_votes_from_csv(self, link):
         with open(link, 'r', encoding='utf-8') as csvfile:
             data = csv.reader(csvfile)
@@ -78,12 +80,13 @@ class Apportionment:
                     self.subject_names[subject_number] = subject_name
         self.subject_names_inv = invert_dict(self.subject_names)
     
+    # calculates number of counted votes - votes used in apportionment
     def counted_votes(self):
         return{x : y for x, y in self.subject_votes.items() if (((y * 100) / (sum(self.subject_votes.values()) - self.subject_votes[0])) > self.treshold(x) and x != 0)}
 
-
+    # method for modifield hagenbach-bischoff apportionment, used in Slovakia
     def slovak_apportionment(self):
-        # This method unlike other apportionment methods, was programmed by me, since few adaptations were required to make it work correctly. 
+        # This method unlike other apportionment methods, was programmed by the author of the thesis, since few adaptations were required to make it work correctly. 
         
         def get_top_x_indexes(numbers, x):
             if x >= len(numbers):
@@ -110,7 +113,7 @@ class Apportionment:
                 seats_given[x] += 1
         return {x: y for x, y in zip(counted_votes.keys(), seats_given)} 
 
-
+    # method for hagenbach-bischoff apportionment
     def hagenbach_bischoff_apportionment(self):
         # credits: https://github.com/simberaj/votelib/blob/master/docs/examples/sk_nr_2020.ipynb
         core_evaluator = votelib.evaluate.proportional.LargestRemainder(
@@ -144,7 +147,7 @@ class Apportionment:
         evaluated = evaluator.evaluate(votes)
         return {self.subject_names_inv[party.name] : mandates for party, mandates in evaluated.items()}
 
-
+    # method for d'hondt apportionment
     def dhondt_apportionment(self):
         # credits: https://github.com/simberaj/votelib/blob/master/docs/examples/sk_nr_2020.ipynb
         core_evaluator = votelib.evaluate.proportional.HighestAverages(
@@ -178,6 +181,8 @@ class Apportionment:
         evaluated = evaluator.evaluate(votes)
         return {self.subject_names_inv[party.name] : mandates for party, mandates in evaluated.items()}
 
+
+    # unified method for dividing seats
     def divide_seats(self, method):
         if method == "slovak":
             return self.slovak_apportionment()
@@ -188,13 +193,15 @@ class Apportionment:
         else:
             print("Invalid method choice. Please choose 'slovak', 'd_hondt' or 'hagenbach_bischoff'.")
 
+    # method that generates random votes
     def generate_additional_votes(self, count):
         keys, probs = zip(*self.probabilities.items())
         choices = np.random.choice(keys, count, p=probs)
         results = {key: np.count_nonzero(choices == key) for key in set(choices)}
         return results
 
-    def simulate_results(self): # only boxes method was left since it is the fastest
+    # this method generates v votes as defined in initialisation
+    def simulate_results(self):
         keys, probs = zip(*self.probabilities.items())
 
         if self.boxes == None:
@@ -210,6 +217,7 @@ class Apportionment:
         sorted_results = {k: results[k] for k in sorted(results.keys())}
         return sorted_results
 
+    # this method performs simulation and exports the result into a .csv file
     def iterated_simulate(self, file, year, nit=10, group_size=10, divide="slovak", coalition=False, multi=False):
 
         print("Initializing simulation...")
@@ -364,7 +372,7 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
             weights[key] = 1  
 
     # iteration through all records
-    # it basically puts averages together, correctly
+    # it averages by chunks, and then the total averages are created as averages by individual chunks
     for chunk in pd.read_csv("./raw_data/"+input_file, chunksize=chunksize):
         chunk['weight'] = chunk['party_number'].map(weights)
         if multi:
@@ -374,7 +382,6 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
   
         all_xdfs.append(xdf)
 
-    # second iteration of the algorith ensures pseudo O(logn) space efficiency
     result_df = pd.concat(all_xdfs, axis=0, ignore_index=True)
 
     if multi:
@@ -388,6 +395,8 @@ def raw2visualisable(input_file, weighted=True, only_electable=False, neglected=
     export_df.to_csv(f"./vis_data/{file_prefix}weighted-vis-{input_file}{suff}", index=False)
     print(f"{input_file} done")
 
+
+# example how to generate synthetic data (500 iteratiosn and million voters results in roughly 6GB and take about 3-4 hours)
 if __name__ == "__main__":
     # Simulation parameters
     voters = 1000000
@@ -395,20 +404,11 @@ if __name__ == "__main__":
     nit = 3
     group_size = int(0.03 * voters)
     link='./real_data/NRSR2023_clean.csv'
-    file='1m-2023temp_testxx.csv'
+    file='1m-2023-demo.csv'
 
     ap = Apportionment(num_seats, voters, link=link) 
     print("No of votes from source:", sum(ap.subject_votes.values()))
     print("Considered votes:", ap.voters)
     print("No. of seats:", num_seats)
 
-    #apportionment test
-    result = ap.divide_seats("slovak")
-    if not (sum(result.values()) == 150): print(result.values()) 
-    else: print("seats ok")
-    if not (sorted(list(result.values())) == [61, 18, 17, 17, 15, 13, 9]): print(result.values()) 
-    else: print("apport ok")
-    print("Apportionment should work correctly.")
-
-    print("sum of probs:", sum(ap.probabilities.values()))
-    ap.iterated_simulate(file, 2023, nit=nit, group_size=group_size, divide="all")
+    ap.iterated_simulate(file, 2023, nit=nit, group_size=group_size, divide="slovak")
